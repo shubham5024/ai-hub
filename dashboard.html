@@ -5,92 +5,236 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Dashboard — AI Prep Hub</title>
   <link rel="stylesheet" href="css/app.css"/>
+  <style>
+    /* ── Today hero ─────────────────────────────────────────── */
+    .today-hero {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .today-tile {
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      border: 1px solid;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .today-tile.tile-learn   { background: var(--blue-bg);   border-color: var(--blue-border);   }
+    .today-tile.tile-done    { background: var(--green-bg);  border-color: var(--green-border);  }
+    .today-tile.tile-revised { background: var(--orange-bg); border-color: var(--orange-border); }
+    .tile-num {
+      font-size: 52px; font-weight: 900; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tile-learn   .tile-num { color: var(--blue);   }
+    .tile-done    .tile-num { color: var(--green);  }
+    .tile-revised .tile-num { color: var(--orange); }
+    .tile-info .tile-label {
+      font-size: 13px; font-weight: 700; color: var(--text);
+    }
+    .tile-info .tile-sub {
+      font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.5;
+    }
+
+    /* ── Chapter split ───────────────────────────────────────── */
+    .ch-split-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .ch-split-label {
+      font-size: 11px; font-weight: 700; color: var(--text);
+      width: 160px; flex-shrink: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ch-split-track {
+      flex: 1; height: 7px; background: var(--border);
+      border-radius: 99px; overflow: hidden; display: flex;
+    }
+    .ch-split-seg { height: 100%; border-radius: 99px; transition: width 0.5s; }
+    .ch-split-counts { font-size: 10.5px; color: var(--muted); width: 70px; text-align: right; flex-shrink: 0; }
+
+    /* ── 90-day calendar ─────────────────────────────────────── */
+    .cal-wrap { overflow-x: auto; padding-bottom: 4px; }
+    .cal-grid {
+      display: grid;
+      grid-template-rows: repeat(7, 16px);
+      grid-auto-flow: column;
+      gap: 3px;
+      min-width: max-content;
+    }
+    .cal-cell {
+      width: 16px; height: 16px; border-radius: 3px;
+      background: var(--border); cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .cal-cell:hover { transform: scale(1.3); z-index: 10; }
+    /* Color by total done that day */
+    .cal-cell[data-level="1"] { background: #0d3a24; }
+    .cal-cell[data-level="2"] { background: #1F4D32; }
+    .cal-cell[data-level="3"] { background: #226E40; }
+    .cal-cell[data-level="4"] { background: #289150; }
+    .cal-cell[data-level="5"] { background: var(--green); }
+    .cal-cell.today-cell { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+    /* ── Day detail panel ────────────────────────────────────── */
+    .day-detail {
+      background: var(--surface2);
+      border: 1px solid var(--gold-border);
+      border-left: 4px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-top: 16px;
+      display: none;
+    }
+    .day-detail.open { display: block; }
+    .day-detail-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .day-detail-header h3 { font-size: 15px; font-weight: 800; color: var(--gold); }
+    .day-stat-pill {
+      font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px;
+      border: 1px solid;
+    }
+    .dd-chapter-block { margin-bottom: 16px; }
+    .dd-chapter-title {
+      font-size: 10.5px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .dd-q-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 5px 0; border-bottom: 1px solid var(--border-soft);
+      font-size: 12px;
+    }
+    .dd-q-row:last-child { border-bottom: none; }
+    .dd-action-badge {
+      font-size: 9px; font-weight: 800; padding: 2px 6px;
+      border-radius: 99px; border: 1px solid; flex-shrink: 0; margin-top: 2px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .dd-q-text { flex: 1; color: var(--text-2); line-height: 1.5; }
+    .dd-count   { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+    /* ── Dash layout ─────────────────────────────────────────── */
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+    @media(max-width:760px) { .dash-grid { grid-template-columns:1fr; } .today-hero { grid-template-columns:1fr; } }
+    .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .dash-card h3 { font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Streak ──────────────────────────────────────────────── */
+    .streak-num { font-size: 52px; font-weight: 900; color: var(--gold); line-height: 1; }
+
+    /* ── Trend chart ─────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 100px; }
+    .chart-svg  { width: 100%; height: 100%; }
+
+    /* ── Most revised ────────────────────────────────────────── */
+    .rev-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 7px; display: flex; align-items: flex-start; gap: 10px; }
+    .rev-badge { min-width: 32px; padding: 3px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; background: var(--orange-bg); border: 1px solid var(--orange-border); color: var(--orange); }
+    .rev-body  { flex: 1; }
+    .rev-q     { font-size: 12px; color: var(--text); line-height: 1.5; }
+    .rev-meta  { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Section readiness ───────────────────────────────────── */
+    .sec-row { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+    .sec-row-icon { font-size: 13px; width: 20px; text-align: center; }
+    .sec-row-name { font-size: 11.5px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sec-row-pct  { font-size: 11.5px; font-weight: 700; width: 32px; text-align: right; }
+    .sec-bar-track { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; flex: 2; }
+    .sec-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s; }
+  </style>
 </head>
 <body>
   <nav class="navbar" id="navbar"></nav>
 
   <div class="layout" style="display:block">
-    <main class="main" style="max-width:1100px;margin:0 auto">
+    <main class="main" style="max-width:1060px;margin:0 auto">
 
       <header class="page-header">
-        <h1>Your Readiness Dashboard</h1>
-        <p>All data stored locally in your browser. Updated every time you rate a question.</p>
+        <h1>Your Dashboard</h1>
+        <p>Daily tracking · Chapter breakdowns · 90-day history. All stored locally — yours forever.</p>
       </header>
 
-      <!-- Hero readiness ring -->
-      <div class="ready-hero" id="ready-hero">
-        <div class="ready-ring">
-          <svg width="120" height="120" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="12"/>
-            <circle cx="60" cy="60" r="50" fill="none" id="ring-arc"
-              stroke="var(--green)" stroke-width="12"
-              stroke-dasharray="314" stroke-dashoffset="314"
-              stroke-linecap="round" style="transition:stroke-dashoffset 1s,stroke 0.5s"/>
-          </svg>
-          <div class="ready-ring-label">
-            <div class="ready-pct" id="ring-pct" style="color:var(--green)">0%</div>
-            <div class="ready-word">Ready</div>
+      <!-- ── TODAY 3-TILE HERO ──────────────────────────────── -->
+      <div class="today-hero">
+        <div class="today-tile tile-learn">
+          <div class="tile-num" id="today-learn">0</div>
+          <div class="tile-info">
+            <div class="tile-label">📖 Learned</div>
+            <div class="tile-sub">First reads today</div>
           </div>
         </div>
-        <div class="ready-info">
-          <h2 id="ready-headline">Calculating…</h2>
-          <p  id="ready-sub"></p>
-          <div class="ready-meta" id="ready-meta"></div>
+        <div class="today-tile tile-done">
+          <div class="tile-num" id="today-done">0</div>
+          <div class="tile-info">
+            <div class="tile-label">✅ Done</div>
+            <div class="tile-sub">Fully understood today</div>
+          </div>
+        </div>
+        <div class="today-tile tile-revised">
+          <div class="tile-num" id="today-revised">0</div>
+          <div class="tile-info">
+            <div class="tile-label">🔁 Revised</div>
+            <div class="tile-sub">Marked for review today</div>
+          </div>
         </div>
       </div>
 
-      <div class="dash-grid">
-        <!-- Section readiness -->
-        <div class="dash-card" id="section-card">
-          <h3>📊 Section Readiness</h3>
-          <div id="section-rows"><p style="color:var(--muted);font-size:13px">No data yet — rate some questions first.</p></div>
+      <!-- Today chapter breakdown -->
+      <div class="dash-card" style="margin-bottom:20px">
+        <h3>📊 Today's Chapter Breakdown <span id="today-date" style="font-weight:400;color:var(--muted)"></span></h3>
+        <div id="today-chapter-split">
+          <p style="color:var(--muted);font-size:13px">No activity yet today. <a href="questions.html">Start drilling →</a></p>
         </div>
+      </div>
+
+      <!-- ── 90-DAY CALENDAR ────────────────────────────────── -->
+      <div class="dash-card" style="margin-bottom:20px">
+        <h3>📅 90-Day History — click any day to see breakdown</h3>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:var(--muted)">
+          Fewer Done
+          <span class="cal-cell" style="display:inline-block;cursor:default"></span>
+          <span class="cal-cell" style="display:inline-block;cursor:default" data-level="1"></span>
+          <span class="cal-cell" style="display:inline-block;cursor:default" data-level="3"></span>
+          <span class="cal-cell" style="display:inline-block;cursor:default" data-level="5"></span>
+          More Done
+        </div>
+        <div class="cal-wrap"><div class="cal-grid" id="cal-grid"></div></div>
+        <div class="day-detail" id="day-detail"></div>
+      </div>
+
+      <!-- ── 2×2 GRID ──────────────────────────────────────── -->
+      <div class="dash-grid">
 
         <!-- Streak -->
         <div class="dash-card">
           <h3>🔥 Study Streak</h3>
-          <div class="streak-display">
+          <div style="display:flex;align-items:center;gap:16px">
             <div class="streak-num" id="streak-num">0</div>
-            <div class="streak-info">
-              <p><strong>consecutive days</strong> with ≥5 questions rated</p>
-              <p id="streak-sub" style="margin-top:6px"></p>
+            <div>
+              <p style="font-size:13px;color:var(--text);font-weight:600">consecutive days with ≥5 Done</p>
+              <p id="streak-sub" style="font-size:12px;color:var(--muted);margin-top:4px"></p>
             </div>
           </div>
         </div>
 
-        <!-- Score trend -->
+        <!-- Daily Done trend -->
         <div class="dash-card">
-          <h3>📈 Daily Avg Score (last 30 days)</h3>
+          <h3>📈 Daily Done Count (last 30 days)</h3>
           <div class="chart-wrap"><svg class="chart-svg" id="trend-svg"></svg></div>
         </div>
 
-        <!-- Weak spots -->
+        <!-- Chapter readiness -->
         <div class="dash-card">
-          <h3>⚠️ Weak Spots (avg score &lt; 3)</h3>
-          <div id="weak-list"><p style="color:var(--muted);font-size:13px">No data yet.</p></div>
+          <h3>📊 Chapter Progress (all-time)</h3>
+          <div id="chapter-progress"></div>
         </div>
-      </div>
 
-      <!-- Heatmap -->
-      <div class="dash-card" style="margin-bottom:28px">
-        <h3>📅 Activity Heatmap (last 60 days)</h3>
-        <div class="heatmap-wrap">
-          <div class="heatmap-grid" id="heatmap-grid"></div>
+        <!-- Most revised = need attention -->
+        <div class="dash-card">
+          <h3>🔁 Most Revised (needs most work)</h3>
+          <div id="most-revised"></div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:10px;color:var(--muted)">
-          Less
-          <span class="hm-cell" style="display:inline-block"></span>
-          <span class="hm-cell" style="display:inline-block" data-level="1"></span>
-          <span class="hm-cell" style="display:inline-block" data-level="3"></span>
-          <span class="hm-cell" style="display:inline-block" data-level="5"></span>
-          More
-        </div>
-      </div>
 
-      <!-- Mastered topics -->
-      <div class="dash-card" style="margin-bottom:28px">
-        <h3>✅ Mastered Topics</h3>
-        <div id="mastered-list"><p style="color:var(--muted);font-size:13px">No topics mastered yet.</p></div>
       </div>
 
     </main>
@@ -99,184 +243,277 @@
 <script src="js/common.js"></script>
 <script src="js/data.js"></script>
 <script>
+const CH_COLORS = ['#5BA4F5','#3ECF8E','#F97B3D','#A78BFA','#F56565','#F5C842','#60D4F5'];
+
 function init() {
-  const sections = window.AI_SECTIONS || [];
-  const progress = Store.getProgress();
-  const daily    = Store.getDailyActivity();
-  const allScores= Store.getAllScores();
-  const weakSpots= Store.getWeakSpots();
-  const streak   = Store.getStreak();
-
-  // Compute stats
-  let totalDrills = 0, allAttempted = 0;
-  const sectionStats = sections.map(sec => {
-    let secDrills = 0, secAttempted = 0, secScoreSum = 0;
-    sec.topics.forEach(t => {
-      (t.drill || []).forEach((d, i) => {
-        totalDrills++;
-        secDrills++;
-        const key   = `${t.id}::${i}`;
-        const score = allScores[key];
-        if (score) { secAttempted++; allAttempted++; secScoreSum += score; }
-      });
-    });
-    const readiness = secDrills
-      ? Math.round((secAttempted / secDrills) * (secAttempted ? secScoreSum / secAttempted / 5 : 0) * 100)
-      : 0;
-    return { id: sec.id, title: sec.title, icon: sec.icon, readiness };
-  });
-
-  const overallReady = totalDrills
-    ? Math.round((allAttempted / totalDrills) * (allAttempted ? Object.values(allScores).reduce((a, b) => a + b, 0) / allAttempted / 5 : 0) * 100)
-    : 0;
-
-  // Readiness ring
-  const arcEl  = document.getElementById('ring-arc');
-  const pctEl  = document.getElementById('ring-pct');
-  const circum = 314;
-  const color  = getReadinessColor(overallReady);
-  setTimeout(() => {
-    arcEl.style.strokeDashoffset = circum - (overallReady / 100) * circum;
-    arcEl.style.stroke = color;
-  }, 100);
-  pctEl.textContent = overallReady + '%';
-  pctEl.style.color = color;
-
-  document.getElementById('ready-headline').textContent =
-    overallReady >= 80 ? '🟢 You are interview-ready!' :
-    overallReady >= 50 ? '🟡 Good progress — keep going' :
-    overallReady >= 20 ? '🟠 Getting started — daily practice needed' :
-    '🔴 Just beginning — lots to cover';
-
-  document.getElementById('ready-sub').textContent =
-    `${allAttempted} of ${totalDrills} questions rated · readiness = coverage × avg score`;
-
-  document.getElementById('ready-meta').innerHTML = `
-    <div class="ready-meta-item"><div class="val">${totalDrills}</div><div class="lbl">Total Drills</div></div>
-    <div class="ready-meta-item"><div class="val">${allAttempted}</div><div class="lbl">Attempted</div></div>
-    <div class="ready-meta-item"><div class="val">${streak}</div><div class="lbl">Day Streak 🔥</div></div>
-    <div class="ready-meta-item"><div class="val">${sectionStats.filter(s => s.readiness >= 80).length}</div><div class="lbl">Sections Ready</div></div>`;
-
-  // Section rows
-  document.getElementById('section-rows').innerHTML = sectionStats.map(s => {
-    const clr = getReadinessColor(s.readiness);
-    return `
-      <div class="sec-row">
-        <span class="sec-row-icon">${s.icon}</span>
-        <span class="sec-row-name" title="${escHtml(s.title)}">${escHtml(s.title.replace(/^\d+\.\s*/, ''))}</span>
-        <div class="sec-bar-track"><div class="sec-bar-fill" style="width:${s.readiness}%;background:${clr}"></div></div>
-        <span class="sec-row-pct" style="color:${clr}">${s.readiness}%</span>
-      </div>`;
-  }).join('');
-
-  // Streak
-  document.getElementById('streak-num').textContent = streak;
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayRow = daily.find(d => d.day === todayKey);
-  document.getElementById('streak-sub').innerHTML = todayRow
-    ? `Today: <strong>${todayRow.total_reviewed} questions</strong> rated, avg <strong>${todayRow.avg_score}</strong>`
-    : `No questions rated today yet. <a href="questions.html">Start your session →</a>`;
-
-  // Score trend
-  renderTrendChart(daily.slice(-30));
-
-  // Weak spots
-  const weakEl = document.getElementById('weak-list');
-  if (!weakSpots.length) {
-    weakEl.innerHTML = `<p style="color:var(--green);font-size:13px">✅ No weak spots! All attempted questions average ≥ 3.</p>`;
-  } else {
-    const SCORE_COLORS = ['','var(--red)','var(--orange)','var(--yellow)','var(--green)','var(--accent)'];
-    weakEl.innerHTML = weakSpots.map(w => {
-      const clr = SCORE_COLORS[Math.round(w.avg_score)] || 'var(--red)';
-      return `
-        <div class="weak-item">
-          <div class="weak-score-badge" style="background:${clr}20;border:1px solid ${clr};color:${clr}">${w.avg_score}</div>
-          <div class="weak-body">
-            <div class="weak-q">${escHtml(w.question_text || 'Question #' + (w.question_index + 1))}</div>
-            <div class="weak-meta">${escHtml(w.topic_id)} · ${w.attempts} attempt${w.attempts > 1 ? 's' : ''}</div>
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  // Heatmap
-  renderHeatmap(daily);
-
-  // Mastered topics
-  const masteredIds = Object.entries(progress).filter(([, v]) => v === 'mastered').map(([k]) => k);
-  const masteredEl  = document.getElementById('mastered-list');
-  if (!masteredIds.length) {
-    masteredEl.innerHTML = `<p style="color:var(--muted);font-size:13px">No topics mastered yet. Keep going!</p>`;
-  } else {
-    const topicMap = {};
-    sections.forEach(sec => sec.topics.forEach(t => { topicMap[t.id] = { title: t.title, secTitle: sec.title }; }));
-    masteredEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;">` +
-      masteredIds.map(id => {
-        const t = topicMap[id] || { title: id, secTitle: '' };
-        return `<span style="background:var(--green-soft);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;">✓ ${escHtml(t.title)}</span>`;
-      }).join('') + `</div>`;
-  }
+  const sections  = window.AI_SECTIONS || [];
+  const summaries = Store.getDailySummaries(90);
+  const today     = new Date().toISOString().slice(0, 10);
+  const todayS    = summaries.find(s => s.date === today) || { learn: 0, done: 0, revised: 0, total: 0, byChapter: {} };
+  const streak    = Store.getStreak();
+  const mostRev   = Store.getMostRevised();
+  const qCounts   = Store.getQCounts();
 
   window.TOTAL_TOPICS = sections.reduce((a, s) => a + s.topics.length, 0);
   renderNavbar('dashboard');
+
+  // ── TODAY TILES ──────────────────────────────────────────────
+  document.getElementById('today-learn').textContent   = todayS.learn;
+  document.getElementById('today-done').textContent    = todayS.done;
+  document.getElementById('today-revised').textContent = todayS.revised;
+
+  const dow   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const d     = new Date(today + 'T00:00:00');
+  document.getElementById('today-date').textContent = `— ${dow[d.getDay()]}, ${today}`;
+
+  // Today chapter breakdown
+  renderChapterSplit('today-chapter-split', todayS.byChapter, todayS.done + todayS.revised);
+
+  // ── STREAK ───────────────────────────────────────────────────
+  document.getElementById('streak-num').textContent = streak;
+  const todaySub = todayS.done
+    ? `Today: ${todayS.done} Done · ${todayS.revised} Revised · ${todayS.learn} Learned`
+    : 'No questions marked Done today yet. <a href="questions.html">Start drilling →</a>';
+  document.getElementById('streak-sub').innerHTML = todaySub;
+
+  // ── 90-DAY CALENDAR ──────────────────────────────────────────
+  renderCalendar(summaries, today);
+
+  // ── TREND CHART ──────────────────────────────────────────────
+  renderTrendChart(summaries.slice(-30));
+
+  // ── CHAPTER PROGRESS ─────────────────────────────────────────
+  renderChapterProgress(sections, qCounts);
+
+  // ── MOST REVISED ─────────────────────────────────────────────
+  renderMostRevised(mostRev);
 }
 
+// ── Chapter split bars ───────────────────────────────────────────
+function renderChapterSplit(containerId, byChapter, total) {
+  const el  = document.getElementById(containerId);
+  if (!el) return;
+  const chs = Object.keys(byChapter).map(Number).sort((a, b) => a - b);
+  if (!chs.length) {
+    el.innerHTML = `<p style="color:var(--muted);font-size:13px">No activity yet today. <a href="questions.html">Start drilling →</a></p>`;
+    return;
+  }
+
+  el.innerHTML = chs.map(ch => {
+    const d    = byChapter[ch];
+    const clr  = CH_COLORS[(ch - 1) % CH_COLORS.length] || 'var(--gold)';
+    const tot  = d.done + d.revised + d.learn;
+    const dPct = tot ? Math.round(d.done    / tot * 100) : 0;
+    const rPct = tot ? Math.round(d.revised / tot * 100) : 0;
+    const lPct = tot ? Math.round(d.learn   / tot * 100) : 0;
+    return `
+      <div class="ch-split-row">
+        <div class="ch-split-label">
+          <span style="font-size:9px;font-weight:800;color:${clr};background:${clr}20;border:1px solid ${clr}50;padding:1px 5px;border-radius:3px;margin-right:6px">Ch${ch}</span>
+          ${escHtml(d.title)}
+        </div>
+        <div class="ch-split-track">
+          <div class="ch-split-seg" style="width:${lPct}%;background:var(--blue)"   title="${d.learn} learned"></div>
+          <div class="ch-split-seg" style="width:${dPct}%;background:var(--green)"  title="${d.done} done"></div>
+          <div class="ch-split-seg" style="width:${rPct}%;background:var(--orange)" title="${d.revised} revised"></div>
+        </div>
+        <div class="ch-split-counts">
+          <span style="color:var(--blue)">${d.learn}</span>·<span style="color:var(--green)">${d.done}</span>·<span style="color:var(--orange)">${d.revised}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── 90-day calendar ──────────────────────────────────────────────
+function renderCalendar(summaries, today) {
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = summaries.map(s => {
+    const lvl = s.done === 0 ? 0 : s.done < 5 ? 1 : s.done < 15 ? 2 : s.done < 30 ? 3 : s.done < 50 ? 4 : 5;
+    const isToday = s.date === today;
+    return `<div class="cal-cell${isToday ? ' today-cell' : ''}"
+      data-level="${lvl}" data-date="${s.date}"
+      title="${s.date}: ${s.done} Done · ${s.revised} Revised · ${s.learn} Learned"
+      onclick="showDayDetail('${s.date}')"></div>`;
+  }).join('');
+}
+
+// ── Day detail ────────────────────────────────────────────────────
+let _lastDate = null;
+function showDayDetail(date) {
+  const panel = document.getElementById('day-detail');
+  if (_lastDate === date && panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    _lastDate = null;
+    document.querySelectorAll('.cal-cell').forEach(c => { if (c.dataset.date === date) c.style.outline = ''; });
+    return;
+  }
+  _lastDate = date;
+  document.querySelectorAll('.cal-cell').forEach(c => {
+    c.style.outline = c.dataset.date === date ? '2px solid var(--gold)' : '';
+  });
+
+  const log = Store.getDayLog(date);
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const d   = new Date(date + 'T00:00:00');
+  const label = `${dow[d.getDay()]} ${date}`;
+
+  if (!log.length) {
+    panel.innerHTML = `<div class="day-detail-header"><h3>📅 ${label}</h3></div><p style="color:var(--muted);font-size:13px">No activity on this day.</p>`;
+    panel.classList.add('open');
+    return;
+  }
+
+  // Aggregate unique q+action pairs
+  const seen = new Set();
+  const byChapter = {};
+  let learn = 0, done = 0, revised = 0;
+  log.forEach(e => {
+    const ukey = `${e.topicId}::${e.qIdx}::${e.action}`;
+    if (seen.has(ukey)) return;
+    seen.add(ukey);
+    const ch = e.chapter || 0;
+    if (!byChapter[ch]) byChapter[ch] = { title: e.chapter_title || 'General', items: [] };
+    byChapter[ch].items.push(e);
+    if (e.action === 'learn')   learn++;
+    if (e.action === 'done')    done++;
+    if (e.action === 'revised') revised++;
+  });
+
+  const allCounts = Store.getQCounts();
+  const chNums    = Object.keys(byChapter).map(Number).sort((a, b) => a - b);
+
+  const chapHtml = chNums.map(ch => {
+    const { title, items } = byChapter[ch];
+    const clr = CH_COLORS[(ch - 1) % CH_COLORS.length] || 'var(--gold)';
+    const qRows = items.map(e => {
+      const ac    = e.action;
+      const acClr = ac === 'learn' ? 'var(--blue)' : ac === 'done' ? 'var(--green)' : 'var(--orange)';
+      const counts= allCounts[`${e.topicId}::${e.qIdx}`] || {};
+      const total = (counts.learn||0) + (counts.done||0) + (counts.revised||0);
+      return `
+        <div class="dd-q-row">
+          <span class="dd-action-badge" style="color:${acClr};background:${acClr}20;border-color:${acClr}50">
+            ${ac === 'learn' ? '📖' : ac === 'done' ? '✅' : '🔁'} ${ac}
+          </span>
+          <span class="dd-q-text">${escHtml(e.q || `Question #${e.qIdx + 1}`)}</span>
+          <span class="dd-count" title="All-time interactions">${total > 0 ? `×${total}` : ''}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="dd-chapter-block">
+        <div class="dd-chapter-title">
+          <span style="font-size:9px;font-weight:800;color:${clr};background:${clr}20;border:1px solid ${clr}50;padding:1px 5px;border-radius:3px">Ch${ch}</span>
+          ${escHtml(title)} — <span style="color:var(--text)">${items.length} interactions</span>
+        </div>
+        ${qRows}
+      </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="day-detail-header">
+      <h3>📅 ${label}</h3>
+      <span class="day-stat-pill" style="color:var(--blue);border-color:var(--blue-border);background:var(--blue-bg)">📖 ${learn} Learned</span>
+      <span class="day-stat-pill" style="color:var(--green);border-color:var(--green-border);background:var(--green-bg)">✅ ${done} Done</span>
+      <span class="day-stat-pill" style="color:var(--orange);border-color:var(--orange-border);background:var(--orange-bg)">🔁 ${revised} Revised</span>
+    </div>
+    ${chapHtml}`;
+  panel.classList.add('open');
+}
+
+// ── Trend chart (Done per day bars) ─────────────────────────────
 function renderTrendChart(data) {
   const svg = document.getElementById('trend-svg');
-  if (!data.length) {
-    svg.innerHTML = `<text x="50%" y="50%" fill="var(--muted)" font-size="12" text-anchor="middle">No data yet — rate some questions</text>`;
+  if (!data.some(d => d.done > 0)) {
+    svg.innerHTML = `<text x="50%" y="50%" fill="var(--muted)" font-size="12" text-anchor="middle">No data yet</text>`;
     return;
   }
   const W = svg.clientWidth || 420, H = 90;
-  const maxScore = 5, minScore = 1;
-  const padL = 26, padR = 8, padT = 8, padB = 20;
+  const padL = 24, padR = 6, padT = 6, padB = 16;
   const W2 = W - padL - padR, H2 = H - padT - padB;
+  const maxVal = Math.max(...data.map(d => d.done), 1);
+  const bw     = Math.max(W2 / data.length - 2, 1);
 
-  const points = data.map((d, i) => ({
-    x: padL + (i / Math.max(data.length - 1, 1)) * W2,
-    y: padT + H2 - ((d.avg_score - minScore) / (maxScore - minScore)) * H2,
-    d
-  }));
+  const bars = data.map((d, i) => {
+    const x   = padL + i * (W2 / data.length) + 1;
+    const bh  = d.done ? Math.max((d.done / maxVal) * H2, 2) : 0;
+    const y   = padT + H2 - bh;
+    const clr = d.done >= 20 ? 'var(--green)' : d.done >= 10 ? 'var(--gold)' : d.done >= 3 ? 'var(--orange)' : 'var(--border)';
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${clr}" rx="2">
+      <title>${d.date}: ${d.done} Done · ${d.revised} Revised</title></rect>`;
+  }).join('');
 
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const areaD = pathD + ` L${points[points.length - 1].x},${padT + H2} L${padL},${padT + H2} Z`;
+  const yLabels = [0, maxVal].map(v => {
+    const y = padT + H2 - (v / maxVal) * H2;
+    return `<text x="${padL - 3}" y="${(y + 4).toFixed(1)}" fill="var(--muted)" font-size="8" text-anchor="end">${v}</text>
+            <line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+W2}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+  }).join('');
 
-  svg.innerHTML = `
-    <defs>
-      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#7C6FFF" stop-opacity="0.3"/>
-        <stop offset="100%" stop-color="#7C6FFF" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    ${[1,2,3,4,5].map(v => {
-      const y = padT + H2 - ((v - minScore) / (maxScore - minScore)) * H2;
-      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + W2}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
-              <text x="${padL - 5}" y="${(y + 4).toFixed(1)}" fill="var(--muted)" font-size="9" text-anchor="end">${v}</text>`;
-    }).join('')}
-    <path d="${areaD}" fill="url(#ag)"/>
-    <path d="${pathD}" fill="none" stroke="#7C6FFF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    ${points.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#7C6FFF"/>`).join('')}`;
+  svg.innerHTML = yLabels + bars;
 }
 
-function renderHeatmap(daily) {
-  const grid  = document.getElementById('heatmap-grid');
-  const map   = {};
-  daily.forEach(d => { map[d.day] = d.total_reviewed; });
+// ── Chapter progress (all-time Done/Revised counts) ──────────────
+function renderChapterProgress(sections, qCounts) {
+  const chMap = {};
+  sections.forEach(sec => {
+    const ch = sec.chapter || 0;
+    if (!chMap[ch]) chMap[ch] = { title: sec.chapter_title || 'General', total: 0, done: 0, revised: 0, learn: 0 };
+    sec.topics.forEach(t => {
+      (t.drill || []).forEach((_, i) => {
+        chMap[ch].total++;
+        const c = qCounts[`${t.id}::${i}`];
+        if (c) {
+          if (c.done    > 0) chMap[ch].done++;
+          if (c.revised > 0) chMap[ch].revised++;
+          if (c.learn   > 0) chMap[ch].learn++;
+        }
+      });
+    });
+  });
 
-  const today = new Date();
-  const cells = [];
-  for (let i = 59; i >= 0; i--) {
-    const d   = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const cnt = map[key] || 0;
-    const lvl = cnt === 0 ? 0 : cnt < 5 ? 1 : cnt < 10 ? 2 : cnt < 20 ? 3 : cnt < 40 ? 4 : 5;
-    cells.push({ key, cnt, lvl });
+  const el  = document.getElementById('chapter-progress');
+  const chs = Object.keys(chMap).map(Number).sort((a, b) => a - b);
+  el.innerHTML = chs.map(ch => {
+    const d   = chMap[ch];
+    const clr = CH_COLORS[(ch - 1) % CH_COLORS.length] || 'var(--gold)';
+    const dPct = d.total ? Math.round(d.done    / d.total * 100) : 0;
+    const rPct = d.total ? Math.round(d.revised / d.total * 100) : 0;
+    const lPct = d.total ? Math.round(d.learn   / d.total * 100) : 0;
+    return `
+      <div class="ch-split-row">
+        <div class="ch-split-label">
+          <span style="font-size:9px;font-weight:800;color:${clr};background:${clr}20;border:1px solid ${clr}50;padding:1px 5px;border-radius:3px;margin-right:5px">Ch${ch}</span>
+          ${escHtml(d.title)}
+        </div>
+        <div class="ch-split-track">
+          <div class="ch-split-seg" style="width:${lPct}%;background:var(--blue)"   title="${d.learn}/${d.total} learned"></div>
+          <div class="ch-split-seg" style="width:${dPct}%;background:var(--green)"  title="${d.done}/${d.total} done"></div>
+          <div class="ch-split-seg" style="width:${rPct}%;background:var(--orange)" title="${d.revised}/${d.total} revised"></div>
+        </div>
+        <div class="ch-split-counts" title="${d.done} done / ${d.total} total">
+          <span style="color:var(--green)">${d.done}</span>/<span style="color:var(--muted)">${d.total}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Most revised ─────────────────────────────────────────────────
+function renderMostRevised(items) {
+  const el = document.getElementById('most-revised');
+  if (!items.length) {
+    el.innerHTML = `<p style="color:var(--green);font-size:13px">✅ Nothing marked Revise yet — keep going!</p>`;
+    return;
   }
-
-  grid.innerHTML = cells.map(c =>
-    `<div class="hm-cell" data-level="${c.lvl}" title="${c.key}: ${c.cnt} questions"></div>`
-  ).join('');
+  el.innerHTML = items.map(w => `
+    <div class="rev-item">
+      <div class="rev-badge" title="${w.revisedCount}× revised">🔁 ${w.revisedCount}</div>
+      <div class="rev-body">
+        <div class="rev-q">${escHtml(w.q || 'Question #' + (w.qIdx + 1))}</div>
+        <div class="rev-meta">
+          ${w.chapter_title ? escHtml(w.chapter_title) + ' · ' : ''}
+          Done ${w.doneCount}× · Learned ${w.learnCount}×
+        </div>
+      </div>
+    </div>`).join('');
 }
 
 init();
