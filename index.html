@@ -49,6 +49,9 @@
     .d-btn-learn.active   { background: rgba(91,164,245,0.18);  border-color: var(--blue);   }
     .d-btn-done.active    { background: rgba(62,207,142,0.18);  border-color: var(--green);  box-shadow: 0 0 0 2px var(--green-glow); }
     .d-btn-revised.active { background: rgba(249,123,61,0.18);  border-color: var(--orange); }
+    .d-action-btn:disabled, .d-action-btn.locked {
+      opacity: 0.28; cursor: not-allowed; pointer-events: none;
+    }
     .d-count-badge {
       font-size: 9.5px; font-weight: 800;
       background: rgba(255,255,255,0.10);
@@ -141,19 +144,22 @@ function renderDrillItem(item, idx, topicId, secMeta) {
           <pre>${escHtml(item.a)}</pre>
         </div>
         <div class="drill-action-row">
-          <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}"
+          <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
             id="dbl-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'learn')">
+            onclick="markDrillQ('${topicId}',${idx},'learn')"
+            title="${counts.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time'}">
             📖 Learn <span class="d-count-badge" id="dcl-${topicId}-${idx}">${counts.learn || 0}</span>
           </button>
-          <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}"
+          <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="dbd-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'done')">
+            onclick="markDrillQ('${topicId}',${idx},'done')"
+            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark as understood'}">
             ✅ Done <span class="d-count-badge" id="dcd-${topicId}-${idx}">${counts.done || 0}</span>
           </button>
-          <button class="d-action-btn d-btn-revised${last === 'revised' ? ' active' : ''}"
+          <button class="d-action-btn d-btn-revised${last === 'revised' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="dbr-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'revised')">
+            onclick="markDrillQ('${topicId}',${idx},'revised')"
+            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark for more revision'}">
             🔁 Revise <span class="d-count-badge" id="dcr-${topicId}-${idx}">${counts.revised || 0}</span>
           </button>
         </div>
@@ -346,13 +352,20 @@ function filterTopics(q) {
 
 // ── Mark drill question from study page ─────────────────────────
 function markDrillQ(topicId, qIdx, action) {
-  const key  = `${topicId}::${qIdx}`;
+  const key = `${topicId}::${qIdx}`;
+  if (!studyQCounts[key]) studyQCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
+  const c = studyQCounts[key];
+
+  // Gate: Done/Revise require Learn first
+  if ((action === 'done' || action === 'revised') && c.learn === 0) return;
+  // Gate: Learn disabled after Revise
+  if (action === 'learn' && c.revised > 0) return;
+
   const meta = studyQMeta[key] || { q: '', chapter: 0, chapter_title: '', section_id: topicId, section_num: '' };
   Store.markQuestion(topicId, qIdx, action, meta);
 
-  if (!studyQCounts[key]) studyQCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
-  studyQCounts[key][action]++;
-  studyQCounts[key].last = action;
+  c[action]++;
+  c.last = action;
 
   // Update drill item state class
   const di = document.getElementById(`di-${topicId}-${qIdx}`);
@@ -361,14 +374,22 @@ function markDrillQ(topicId, qIdx, action) {
     di.classList.add(`state-${action}`);
   }
 
-  // Update button active states
-  ['learn','done','revised'].forEach(a => {
-    const btn = document.getElementById(`db${a[0]}-${topicId}-${qIdx}`);
-    if (btn) btn.classList.toggle('active', a === action);
-  });
+  // Update button active + locked states
+  const btnLearn   = document.getElementById(`dbl-${topicId}-${qIdx}`);
+  const btnDone    = document.getElementById(`dbd-${topicId}-${qIdx}`);
+  const btnRevised = document.getElementById(`dbr-${topicId}-${qIdx}`);
+
+  if (btnLearn) {
+    btnLearn.classList.toggle('active', action === 'learn');
+    btnLearn.classList.toggle('locked', c.revised > 0);
+    btnLearn.title = c.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time';
+  }
+  if (btnDone)    btnDone.classList.toggle('active', action === 'done');
+  if (btnRevised) btnRevised.classList.toggle('active', action === 'revised');
+
   // Update counter badge
   const cEl = document.getElementById(`dc${action[0]}-${topicId}-${qIdx}`);
-  if (cEl) cEl.textContent = studyQCounts[key][action];
+  if (cEl) cEl.textContent = c[action];
 
   renderNavbar('home');
 }

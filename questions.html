@@ -53,6 +53,9 @@
       cursor: pointer; transition: all 0.15s;
       font-family: var(--font);
     }
+    .action-btn:disabled, .action-btn.locked {
+      opacity: 0.28; cursor: not-allowed; pointer-events: none;
+    }
     /* Learn — blue */
     .btn-learn {
       background: var(--blue-bg);
@@ -291,19 +294,22 @@ function renderQCard(item, globalIdx) {
           <pre>${escHtml(item.a)}</pre>
         </div>
         <div class="action-row">
-          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}"
+          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
             id="bl-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'learn')">
+            onclick="markQ('${item.topicId}',${item.qIdx},'learn')"
+            title="${counts.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time'}">
             📖 Learn <span class="count-badge" id="cl-${item.topicId}-${item.qIdx}">${counts.learn || 0}</span>
           </button>
-          <button class="action-btn btn-done${last === 'done' ? ' active' : ''}"
+          <button class="action-btn btn-done${last === 'done' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="bd-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'done')">
+            onclick="markQ('${item.topicId}',${item.qIdx},'done')"
+            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark as understood'}">
             ✅ Done <span class="count-badge" id="cd-${item.topicId}-${item.qIdx}">${counts.done || 0}</span>
           </button>
-          <button class="action-btn btn-revised${last === 'revised' ? ' active' : ''}"
+          <button class="action-btn btn-revised${last === 'revised' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="br-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'revised')">
+            onclick="markQ('${item.topicId}',${item.qIdx},'revised')"
+            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark for more revision'}">
             🔁 Revise <span class="count-badge" id="cr-${item.topicId}-${item.qIdx}">${counts.revised || 0}</span>
           </button>
         </div>
@@ -347,13 +353,19 @@ function updateSessionStats() {
 
 function markQ(topicId, qIdx, action) {
   const key  = `${topicId}::${qIdx}`;
+  if (!qCounts[key]) qCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
+  const c = qCounts[key];
+
+  // Gate: Done/Revise require Learn first
+  if ((action === 'done' || action === 'revised') && c.learn === 0) return;
+  // Gate: Learn disabled after Revise
+  if (action === 'learn' && c.revised > 0) return;
+
   const meta = qMetaMap[key] || { q: '', chapter: 0, chapter_title: '', section_id: topicId, section_num: '' };
   Store.markQuestion(topicId, qIdx, action, meta);
 
-  // Update in-memory counts
-  if (!qCounts[key]) qCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
-  qCounts[key][action]++;
-  qCounts[key].last = action;
+  c[action]++;
+  c.last = action;
 
   // Update card state class
   const card = document.getElementById(`qcard-${topicId}-${qIdx}`);
@@ -366,13 +378,26 @@ function markQ(topicId, qIdx, action) {
   const dot = document.getElementById(`dot-${topicId}-${qIdx}`);
   if (dot) { dot.className = `state-dot ${action}`; dot.title = action; }
 
-  // Update button active state + counter
-  ['learn','done','revised'].forEach(a => {
-    const btn = document.getElementById(`b${a[0]}-${topicId}-${qIdx}`);
-    if (btn) btn.classList.toggle('active', a === action);
-  });
+  // Update button active + locked states + counter
+  const btnLearn   = document.getElementById(`bl-${topicId}-${qIdx}`);
+  const btnDone    = document.getElementById(`bd-${topicId}-${qIdx}`);
+  const btnRevised = document.getElementById(`br-${topicId}-${qIdx}`);
+
+  if (btnLearn) {
+    btnLearn.classList.toggle('active', action === 'learn');
+    btnLearn.classList.toggle('locked', c.revised > 0);
+    btnLearn.title = c.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time';
+  }
+  if (btnDone) {
+    btnDone.classList.toggle('active', action === 'done');
+    // stays unlocked once Learn clicked — no change needed
+  }
+  if (btnRevised) {
+    btnRevised.classList.toggle('active', action === 'revised');
+  }
+
   const cEl = document.getElementById(`c${action[0]}-${topicId}-${qIdx}`);
-  if (cEl) cEl.textContent = qCounts[key][action];
+  if (cEl) cEl.textContent = c[action];
 
   updateSessionStats();
   renderNavbar('questions');
