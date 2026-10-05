@@ -26,6 +26,39 @@
     .add-role-card:hover { opacity: 0.7; }
     .topic-section { margin-bottom: 40px; }
     .topic-card    { margin-bottom: 10px; }
+
+    /* ── Drill action buttons (inline in study page) ── */
+    .drill-action-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 13px 8px 43px;
+      background: rgba(0,0,0,0.10);
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .d-action-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s;
+      font-family: var(--font);
+    }
+    .d-btn-learn   { background: var(--blue-bg);   color: var(--blue);   border-color: var(--blue-border);   }
+    .d-btn-done    { background: var(--green-bg);  color: var(--green);  border-color: var(--green-border);  }
+    .d-btn-revised { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-border); }
+    .d-btn-learn.active   { background: rgba(91,164,245,0.18);  border-color: var(--blue);   }
+    .d-btn-done.active    { background: rgba(62,207,142,0.18);  border-color: var(--green);  box-shadow: 0 0 0 2px var(--green-glow); }
+    .d-btn-revised.active { background: rgba(249,123,61,0.18);  border-color: var(--orange); }
+    .d-count-badge {
+      font-size: 9.5px; font-weight: 800;
+      background: rgba(255,255,255,0.10);
+      padding: 1px 5px; border-radius: 99px;
+      min-width: 16px; text-align: center;
+    }
+    /* Drill item state left-border */
+    .drill-item.state-learn   { border-left: 3px solid var(--blue); }
+    .drill-item.state-done    { border-left: 3px solid var(--green); box-shadow: inset 3px 0 10px var(--green-glow); }
+    .drill-item.state-revised { border-left: 3px solid var(--orange); }
   </style>
 </head>
 <body>
@@ -73,12 +106,30 @@
 let allSections = [];
 let progress    = {};
 
+// ── qMeta map for drill items on study page ─────────────────────
+const studyQMeta = {}; // "topicId::idx" → { q, chapter, chapter_title, section_id, section_num }
+let   studyQCounts = {};  // "topicId::idx" → { learn, done, revised, last }
+
 // ── Render helpers ─────────────────────────────────────────────
-function renderDrillItem(item, idx, topicId) {
-  const aid = `ans-${topicId}-${idx}`;
-  const cid = `ac-${topicId}-${idx}`;
+function renderDrillItem(item, idx, topicId, secMeta) {
+  const aid    = `ans-${topicId}-${idx}`;
+  const cid    = `ac-${topicId}-${idx}`;
+  const key    = `${topicId}::${idx}`;
+  const counts = studyQCounts[key] || { learn: 0, done: 0, revised: 0, last: null };
+  const last   = counts.last;
+  const stCls  = last ? `state-${last}` : '';
+
+  // Store meta for markDrillQ
+  studyQMeta[key] = {
+    q:             item.q,
+    chapter:       secMeta.chapter       || 0,
+    chapter_title: secMeta.chapter_title || '',
+    section_id:    secMeta.id            || '',
+    section_num:   secMeta.section_num   || '',
+  };
+
   return `
-    <li class="drill-item">
+    <li class="drill-item ${stCls}" id="di-${topicId}-${idx}">
       <div class="drill-q" onclick="toggleEl('${aid}','${cid}')">
         <span class="drill-num">${idx + 1}.</span>
         <span class="drill-q-text">${escHtml(item.q)}</span>
@@ -89,16 +140,33 @@ function renderDrillItem(item, idx, topicId) {
           <div class="drill-answer-label">💡 Answer</div>
           <pre>${escHtml(item.a)}</pre>
         </div>
+        <div class="drill-action-row">
+          <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}"
+            id="dbl-${topicId}-${idx}"
+            onclick="markDrillQ('${topicId}',${idx},'learn')">
+            📖 Learn <span class="d-count-badge" id="dcl-${topicId}-${idx}">${counts.learn || 0}</span>
+          </button>
+          <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}"
+            id="dbd-${topicId}-${idx}"
+            onclick="markDrillQ('${topicId}',${idx},'done')">
+            ✅ Done <span class="d-count-badge" id="dcd-${topicId}-${idx}">${counts.done || 0}</span>
+          </button>
+          <button class="d-action-btn d-btn-revised${last === 'revised' ? ' active' : ''}"
+            id="dbr-${topicId}-${idx}"
+            onclick="markDrillQ('${topicId}',${idx},'revised')">
+            🔁 Revise <span class="d-count-badge" id="dcr-${topicId}-${idx}">${counts.revised || 0}</span>
+          </button>
+        </div>
       </div>
     </li>`;
 }
 
-function renderTopic(topic) {
+function renderTopic(topic, secMeta) {
   const st      = progress[topic.id] || 'none';
   const cardCls = st !== 'none' ? st : '';
   const badge   = st === 'mastered'  ? `<span class="badge badge-mastered">✓ Mastered</span>`
                 : st === 'reviewing' ? `<span class="badge badge-reviewing">↻ Reviewing</span>` : '';
-  const drillHtml = (topic.drill || []).map((d, i) => renderDrillItem(d, i, topic.id)).join('');
+  const drillHtml = (topic.drill || []).map((d, i) => renderDrillItem(d, i, topic.id, secMeta)).join('');
 
   return `
     <div class="card topic-card ${cardCls}" id="card-${topic.id}">
@@ -178,7 +246,7 @@ function renderAll(sections) {
           <div class="section-icon">${sec.icon}</div>
           <h2><span class="content-sec-num">${sec.section_num || ''}</span>${escHtml(sec.title.replace(/^\d+\.\s*/, ''))}</h2>
         </div>
-        ${sec.topics.map(t => renderTopic(t)).join('')}
+        ${sec.topics.map(t => renderTopic(t, sec)).join('')}
       </div>`).join('');
 
     content.innerHTML += `
@@ -276,10 +344,40 @@ function filterTopics(q) {
   }
 }
 
+// ── Mark drill question from study page ─────────────────────────
+function markDrillQ(topicId, qIdx, action) {
+  const key  = `${topicId}::${qIdx}`;
+  const meta = studyQMeta[key] || { q: '', chapter: 0, chapter_title: '', section_id: topicId, section_num: '' };
+  Store.markQuestion(topicId, qIdx, action, meta);
+
+  if (!studyQCounts[key]) studyQCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
+  studyQCounts[key][action]++;
+  studyQCounts[key].last = action;
+
+  // Update drill item state class
+  const di = document.getElementById(`di-${topicId}-${qIdx}`);
+  if (di) {
+    di.classList.remove('state-learn', 'state-done', 'state-revised');
+    di.classList.add(`state-${action}`);
+  }
+
+  // Update button active states
+  ['learn','done','revised'].forEach(a => {
+    const btn = document.getElementById(`db${a[0]}-${topicId}-${qIdx}`);
+    if (btn) btn.classList.toggle('active', a === action);
+  });
+  // Update counter badge
+  const cEl = document.getElementById(`dc${action[0]}-${topicId}-${qIdx}`);
+  if (cEl) cEl.textContent = studyQCounts[key][action];
+
+  renderNavbar('home');
+}
+
 // ── Init ────────────────────────────────────────────────────────
 function init() {
-  progress    = Store.getProgress();
-  allSections = window.AI_SECTIONS || [];
+  progress      = Store.getProgress();
+  studyQCounts  = Store.getQCounts();
+  allSections   = window.AI_SECTIONS || [];
   renderAll(allSections);
   document.getElementById('search-input').addEventListener('input', e => filterTopics(e.target.value));
 }

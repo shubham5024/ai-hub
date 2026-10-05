@@ -6,6 +6,34 @@
   <title>Drill — AI Prep Hub</title>
   <link rel="stylesheet" href="css/app.css"/>
   <style>
+    /* ── Mobile sidebar toggle ────────────────────────────── */
+    .mob-filter-btn {
+      display: none;
+      align-items: center; gap: 7px;
+      padding: 7px 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text); font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: var(--font);
+      margin-bottom: 14px;
+    }
+    @media (max-width: 768px) {
+      .mob-filter-btn { display: flex; }
+      .sidebar-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.55); z-index: 190;
+      }
+      .sidebar-overlay.open { display: block; }
+      #sidebar-filters {
+        position: fixed; top: 54px; left: 0;
+        height: calc(100vh - 54px); z-index: 195;
+        transform: translateX(-100%); transition: transform 0.25s ease;
+        display: block !important; /* override the hide-on-mobile rule */
+        width: 260px;
+      }
+      #sidebar-filters.open { transform: translateX(0); }
+    }
+
     /* ── Action buttons ───────────────────────────────────── */
     .action-row {
       display: flex;
@@ -141,6 +169,7 @@
 </head>
 <body>
   <nav class="navbar" id="navbar"></nav>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
   <div class="layout">
     <!-- Sidebar: section filters -->
@@ -169,6 +198,8 @@
     </aside>
 
     <main class="main">
+      <!-- Mobile filter button -->
+      <button class="mob-filter-btn" onclick="openSidebar()">☰ Filters</button>
       <header class="page-header">
         <h1>Drill Questions</h1>
         <p>Read each answer → mark <strong style="color:var(--blue)">Learn</strong> (first time) · <strong style="color:var(--green)">Done</strong> (I got it) · <strong style="color:var(--orange)">Revise</strong> (need more work). Counters track how many times.</p>
@@ -382,6 +413,15 @@ function expandAll()   {
 function collapseAll() {
   document.querySelectorAll('.q-body').forEach(b => b.classList.remove('open'));
   document.querySelectorAll('.q-chev').forEach(c => c.style.transform = '');
+}
+
+function openSidebar() {
+  document.getElementById('sidebar-filters').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar-filters').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
 function init() {
