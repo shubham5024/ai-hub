@@ -309,6 +309,12 @@ function renderQCard(item, globalIdx) {
             onclick="markQ('${item.topicId}',${item.qIdx},'revised')">
             🔁 Revise <span class="count-badge" id="cr-${item.topicId}-${item.qIdx}">${counts.revised || 0}</span>
           </button>
+          <button class="action-btn"
+            id="bx-${item.topicId}-${item.qIdx}"
+            onclick="resetQ('${item.topicId}',${item.qIdx})"
+            style="margin-left:auto;background:transparent;color:var(--muted);border-color:var(--border);">
+            ↺ Reset <span class="count-badge" id="cx-${item.topicId}-${item.qIdx}">${counts.reset || 0}</span>
+          </button>
         </div>
       </div>
     </div>`;
@@ -399,6 +405,55 @@ function markQ(topicId, qIdx, action) {
 
   const cEl = document.getElementById(`c${action[0]}-${topicId}-${qIdx}`);
   if (cEl) cEl.textContent = c[action];
+
+  updateSessionStats();
+  renderNavbar('questions');
+}
+
+function resetQ(topicId, qIdx) {
+  const key = `${topicId}::${qIdx}`;
+  if (!qCounts[key]) qCounts[key] = { learn: 0, done: 0, revised: 0, reset: 0, last: null };
+  qCounts[key].reset = (qCounts[key].reset || 0) + 1;
+
+  // Reset all action counts but keep reset count
+  qCounts[key].learn   = 0;
+  qCounts[key].done    = 0;
+  qCounts[key].revised = 0;
+  qCounts[key].last    = null;
+
+  // Persist to localStorage
+  const qs  = Store.getQuestions();
+  if (qs[key]) {
+    qs[key].learnCount   = 0;
+    qs[key].doneCount    = 0;
+    qs[key].revisedCount = 0;
+    qs[key].lastAction   = null;
+    qs[key].resetCount   = qCounts[key].reset;
+  } else {
+    qs[key] = { learnCount:0, doneCount:0, revisedCount:0, lastAction:null, resetCount: qCounts[key].reset,
+      chapter:0, chapter_title:'', section_id:'', section_num:'', q:'' };
+  }
+  Store.saveQuestions(qs);
+
+  // Reset card state
+  const card = document.getElementById(`qcard-${topicId}-${qIdx}`);
+  if (card) card.classList.remove('state-learn','state-done','state-revised');
+
+  const dot = document.getElementById(`dot-${topicId}-${qIdx}`);
+  if (dot) { dot.className = 'state-dot'; dot.title = 'not started'; }
+
+  // Reset buttons to initial state: Learn unlocked, Done/Revise locked, all inactive
+  const btnLearn   = document.getElementById(`bl-${topicId}-${qIdx}`);
+  const btnDone    = document.getElementById(`bd-${topicId}-${qIdx}`);
+  const btnRevised = document.getElementById(`br-${topicId}-${qIdx}`);
+
+  if (btnLearn)   { btnLearn.classList.remove('active','locked');   document.getElementById(`cl-${topicId}-${qIdx}`).textContent = 0; }
+  if (btnDone)    { btnDone.classList.remove('active'); btnDone.classList.add('locked');    document.getElementById(`cd-${topicId}-${qIdx}`).textContent = 0; }
+  if (btnRevised) { btnRevised.classList.remove('active'); btnRevised.classList.add('locked'); document.getElementById(`cr-${topicId}-${qIdx}`).textContent = 0; }
+
+  // Update reset counter badge
+  const cxEl = document.getElementById(`cx-${topicId}-${qIdx}`);
+  if (cxEl) cxEl.textContent = qCounts[key].reset;
 
   updateSessionStats();
   renderNavbar('questions');

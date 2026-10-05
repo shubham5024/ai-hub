@@ -159,6 +159,12 @@ function renderDrillItem(item, idx, topicId, secMeta) {
             onclick="markDrillQ('${topicId}',${idx},'revised')">
             🔁 Revise <span class="d-count-badge" id="dcr-${topicId}-${idx}">${counts.revised || 0}</span>
           </button>
+          <button class="d-action-btn"
+            id="dbx-${topicId}-${idx}"
+            onclick="resetDrillQ('${topicId}',${idx})"
+            style="margin-left:auto;background:transparent;color:var(--muted);border-color:var(--border);">
+            ↺ Reset <span class="d-count-badge" id="dcx-${topicId}-${idx}">${counts.reset || 0}</span>
+          </button>
         </div>
       </div>
     </li>`;
@@ -396,6 +402,50 @@ function markDrillQ(topicId, qIdx, action) {
   // Update counter badge
   const cEl = document.getElementById(`dc${action[0]}-${topicId}-${qIdx}`);
   if (cEl) cEl.textContent = c[action];
+
+  renderNavbar('home');
+}
+
+// ── Reset drill question from study page ────────────────────────
+function resetDrillQ(topicId, qIdx) {
+  const key = `${topicId}::${qIdx}`;
+  if (!studyQCounts[key]) studyQCounts[key] = { learn: 0, done: 0, revised: 0, reset: 0, last: null };
+  studyQCounts[key].reset = (studyQCounts[key].reset || 0) + 1;
+  studyQCounts[key].learn   = 0;
+  studyQCounts[key].done    = 0;
+  studyQCounts[key].revised = 0;
+  studyQCounts[key].last    = null;
+
+  // Persist to localStorage
+  const qs = Store.getQuestions();
+  if (qs[key]) {
+    qs[key].learnCount   = 0;
+    qs[key].doneCount    = 0;
+    qs[key].revisedCount = 0;
+    qs[key].lastAction   = null;
+    qs[key].resetCount   = studyQCounts[key].reset;
+  } else {
+    qs[key] = { learnCount:0, doneCount:0, revisedCount:0, lastAction:null, resetCount: studyQCounts[key].reset,
+      chapter:0, chapter_title:'', section_id:'', section_num:'', q:'' };
+  }
+  Store.saveQuestions(qs);
+
+  // Reset drill item state
+  const di = document.getElementById(`di-${topicId}-${qIdx}`);
+  if (di) di.classList.remove('state-learn','state-done','state-revised');
+
+  // Reset buttons: Learn unlocked, Done/Revise locked, all inactive, counters 0
+  const btnLearn   = document.getElementById(`dbl-${topicId}-${qIdx}`);
+  const btnDone    = document.getElementById(`dbd-${topicId}-${qIdx}`);
+  const btnRevised = document.getElementById(`dbr-${topicId}-${qIdx}`);
+
+  if (btnLearn)   { btnLearn.classList.remove('active','locked');   document.getElementById(`dcl-${topicId}-${qIdx}`).textContent = 0; }
+  if (btnDone)    { btnDone.classList.remove('active'); btnDone.classList.add('locked');    document.getElementById(`dcd-${topicId}-${qIdx}`).textContent = 0; }
+  if (btnRevised) { btnRevised.classList.remove('active'); btnRevised.classList.add('locked'); document.getElementById(`dcr-${topicId}-${qIdx}`).textContent = 0; }
+
+  // Update reset counter badge
+  const cxEl = document.getElementById(`dcx-${topicId}-${qIdx}`);
+  if (cxEl) cxEl.textContent = studyQCounts[key].reset;
 
   renderNavbar('home');
 }

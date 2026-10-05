@@ -189,7 +189,7 @@ const Store = {
     const qs = this.getQuestions();
     const out = {};
     Object.entries(qs).forEach(([k, v]) => {
-      out[k] = { learn: v.learnCount, done: v.doneCount, revised: v.revisedCount, last: v.lastAction };
+      out[k] = { learn: v.learnCount, done: v.doneCount, revised: v.revisedCount, reset: v.resetCount || 0, last: v.lastAction };
     });
     return out;
   }
