@@ -383,14 +383,15 @@ function markQ(topicId, qIdx, action) {
   if (btnLearn) {
     btnLearn.classList.toggle('active', action === 'learn');
     btnLearn.classList.toggle('locked', c.revised > 0);
-    btnLearn.title = c.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time';
   }
   if (btnDone) {
     btnDone.classList.toggle('active', action === 'done');
-    // stays unlocked once Learn clicked — no change needed
+    // unlock Done & Revise as soon as Learn is clicked (c.learn is now >= 1)
+    if (c.learn > 0) btnDone.classList.remove('locked');
   }
   if (btnRevised) {
     btnRevised.classList.toggle('active', action === 'revised');
+    if (c.learn > 0) btnRevised.classList.remove('locked');
   }
 
   const cEl = document.getElementById(`c${action[0]}-${topicId}-${qIdx}`);
