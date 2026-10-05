@@ -349,14 +349,14 @@ function filterTopics(q) {
 
 // ── Mark drill question from study page ─────────────────────────
 function markDrillQ(topicId, qIdx, action) {
+  // Hard gate — check DOM lock state
+  const btnIdMap = { learn: `dbl-${topicId}-${qIdx}`, done: `dbd-${topicId}-${qIdx}`, revised: `dbr-${topicId}-${qIdx}` };
+  const btn = document.getElementById(btnIdMap[action]);
+  if (btn && btn.classList.contains('locked')) return;
+
   const key = `${topicId}::${qIdx}`;
   if (!studyQCounts[key]) studyQCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
   const c = studyQCounts[key];
-
-  // Gate: Done/Revise require Learn first
-  if ((action === 'done' || action === 'revised') && c.learn === 0) return;
-  // Gate: Learn disabled after Revise
-  if (action === 'learn' && c.revised > 0) return;
 
   const meta = studyQMeta[key] || { q: '', chapter: 0, chapter_title: '', section_id: topicId, section_num: '' };
   Store.markQuestion(topicId, qIdx, action, meta);

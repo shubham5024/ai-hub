@@ -349,14 +349,14 @@ function updateSessionStats() {
 }
 
 function markQ(topicId, qIdx, action) {
+  // Hard gate — check DOM lock state (covers pointer-events CSS gap)
+  const btnIdMap = { learn: `bl-${topicId}-${qIdx}`, done: `bd-${topicId}-${qIdx}`, revised: `br-${topicId}-${qIdx}` };
+  const btn = document.getElementById(btnIdMap[action]);
+  if (btn && btn.classList.contains('locked')) return;
+
   const key  = `${topicId}::${qIdx}`;
   if (!qCounts[key]) qCounts[key] = { learn: 0, done: 0, revised: 0, last: null };
   const c = qCounts[key];
-
-  // Gate: Done/Revise require Learn first
-  if ((action === 'done' || action === 'revised') && c.learn === 0) return;
-  // Gate: Learn disabled after Revise
-  if (action === 'learn' && c.revised > 0) return;
 
   const meta = qMetaMap[key] || { q: '', chapter: 0, chapter_title: '', section_id: topicId, section_num: '' };
   Store.markQuestion(topicId, qIdx, action, meta);
