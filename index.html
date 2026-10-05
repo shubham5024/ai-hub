@@ -149,7 +149,7 @@ function renderDrillItem(item, idx, topicId, secMeta) {
             onclick="markDrillQ('${topicId}',${idx},'learn')">
             📖 Learn <span class="d-count-badge" id="dcl-${topicId}-${idx}">${counts.learn || 0}</span>
           </button>
-          <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
+          <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}${(counts.learn === 0 || counts.done > 0) ? ' locked' : ''}"
             id="dbd-${topicId}-${idx}"
             onclick="markDrillQ('${topicId}',${idx},'done')">
             ✅ Done <span class="d-count-badge" id="dcd-${topicId}-${idx}">${counts.done || 0}</span>
@@ -383,7 +383,8 @@ function markDrillQ(topicId, qIdx, action) {
   }
   if (btnDone) {
     btnDone.classList.toggle('active', action === 'done');
-    if (c.learn > 0) btnDone.classList.remove('locked');
+    if (c.learn > 0 && c.done === 0) btnDone.classList.remove('locked');
+    if (c.done > 0) btnDone.classList.add('locked');
   }
   if (btnRevised) {
     btnRevised.classList.toggle('active', action === 'revised');
