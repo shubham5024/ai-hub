@@ -296,20 +296,17 @@ function renderQCard(item, globalIdx) {
         <div class="action-row">
           <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
             id="bl-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'learn')"
-            title="${counts.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time'}">
+            onclick="markQ('${item.topicId}',${item.qIdx},'learn')">
             📖 Learn <span class="count-badge" id="cl-${item.topicId}-${item.qIdx}">${counts.learn || 0}</span>
           </button>
           <button class="action-btn btn-done${last === 'done' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="bd-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'done')"
-            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark as understood'}">
+            onclick="markQ('${item.topicId}',${item.qIdx},'done')">
             ✅ Done <span class="count-badge" id="cd-${item.topicId}-${item.qIdx}">${counts.done || 0}</span>
           </button>
           <button class="action-btn btn-revised${last === 'revised' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="br-${item.topicId}-${item.qIdx}"
-            onclick="markQ('${item.topicId}',${item.qIdx},'revised')"
-            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark for more revision'}">
+            onclick="markQ('${item.topicId}',${item.qIdx},'revised')">
             🔁 Revise <span class="count-badge" id="cr-${item.topicId}-${item.qIdx}">${counts.revised || 0}</span>
           </button>
         </div>

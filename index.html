@@ -146,20 +146,17 @@ function renderDrillItem(item, idx, topicId, secMeta) {
         <div class="drill-action-row">
           <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
             id="dbl-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'learn')"
-            title="${counts.revised > 0 ? 'Disabled after Revise' : 'Mark as reading for first time'}">
+            onclick="markDrillQ('${topicId}',${idx},'learn')">
             📖 Learn <span class="d-count-badge" id="dcl-${topicId}-${idx}">${counts.learn || 0}</span>
           </button>
           <button class="d-action-btn d-btn-done${last === 'done' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="dbd-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'done')"
-            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark as understood'}">
+            onclick="markDrillQ('${topicId}',${idx},'done')">
             ✅ Done <span class="d-count-badge" id="dcd-${topicId}-${idx}">${counts.done || 0}</span>
           </button>
           <button class="d-action-btn d-btn-revised${last === 'revised' ? ' active' : ''}${counts.learn === 0 ? ' locked' : ''}"
             id="dbr-${topicId}-${idx}"
-            onclick="markDrillQ('${topicId}',${idx},'revised')"
-            title="${counts.learn === 0 ? 'Click Learn first' : 'Mark for more revision'}">
+            onclick="markDrillQ('${topicId}',${idx},'revised')">
             🔁 Revise <span class="d-count-badge" id="dcr-${topicId}-${idx}">${counts.revised || 0}</span>
           </button>
         </div>
