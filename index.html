@@ -144,7 +144,7 @@ function renderDrillItem(item, idx, topicId, secMeta) {
           <pre>${escHtml(item.a)}</pre>
         </div>
         <div class="drill-action-row">
-          <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
+          <button class="d-action-btn d-btn-learn${last === 'learn' ? ' active' : ''}${counts.learn > 0 ? ' locked' : ''}"
             id="dbl-${topicId}-${idx}"
             onclick="markDrillQ('${topicId}',${idx},'learn')">
             📖 Learn <span class="d-count-badge" id="dcl-${topicId}-${idx}">${counts.learn || 0}</span>
@@ -378,7 +378,8 @@ function markDrillQ(topicId, qIdx, action) {
 
   if (btnLearn) {
     btnLearn.classList.toggle('active', action === 'learn');
-    btnLearn.classList.toggle('locked', c.revised > 0);
+    // Lock Learn after first click
+    btnLearn.classList.toggle('locked', c.learn > 0);
   }
   if (btnDone) {
     btnDone.classList.toggle('active', action === 'done');

@@ -294,7 +294,7 @@ function renderQCard(item, globalIdx) {
           <pre>${escHtml(item.a)}</pre>
         </div>
         <div class="action-row">
-          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.revised > 0 ? ' locked' : ''}"
+          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.learn > 0 ? ' locked' : ''}"
             id="bl-${item.topicId}-${item.qIdx}"
             onclick="markQ('${item.topicId}',${item.qIdx},'learn')">
             📖 Learn <span class="count-badge" id="cl-${item.topicId}-${item.qIdx}">${counts.learn || 0}</span>
@@ -382,11 +382,12 @@ function markQ(topicId, qIdx, action) {
 
   if (btnLearn) {
     btnLearn.classList.toggle('active', action === 'learn');
-    btnLearn.classList.toggle('locked', c.revised > 0);
+    // Lock Learn after first click (c.learn >= 1) OR after Revise
+    btnLearn.classList.toggle('locked', c.learn > 0);
   }
   if (btnDone) {
     btnDone.classList.toggle('active', action === 'done');
-    // unlock Done & Revise as soon as Learn is clicked (c.learn is now >= 1)
+    // Unlock Done & Revise once Learn has been clicked
     if (c.learn > 0) btnDone.classList.remove('locked');
   }
   if (btnRevised) {
