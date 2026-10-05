@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Study — AI Prep Hub</title>
+  <link rel="stylesheet" href="css/app.css"/>
+  <style>
+    .roles-row { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+    .role-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      min-width: 190px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 13px;
+    }
+    .role-card.active { border-color: var(--accent); background: var(--accent-muted); box-shadow: 0 0 0 1px var(--accent-glow); }
+    .role-card:hover  { border-color: var(--accent-soft); }
+    .role-card .role-icon { font-size: 26px; }
+    .role-card .role-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+    .role-card .role-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .add-role-card { opacity: 0.45; border-style: dashed; }
+    .add-role-card:hover { opacity: 0.7; }
+    .topic-section { margin-bottom: 40px; }
+    .topic-card    { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <header class="page-header">
+        <h1 id="role-title">AI Engineer Interview Prep</h1>
+        <p>Master every topic from ML fundamentals to production AI systems.<br/>Example → Quick Answer → Deep Dive → Drill Questions.</p>
+        <div class="stats-row" id="stats-row"></div>
+      </header>
+
+      <div class="roles-row">
+        <div class="role-card active">
+          <span class="role-icon">🤖</span>
+          <div>
+            <div class="role-name">AI Engineer</div>
+            <div class="role-desc">LLMs · RAG · Agents · MLOps</div>
+          </div>
+        </div>
+        <div class="role-card add-role-card" title="Coming soon">
+          <span class="role-icon">➕</span>
+          <div>
+            <div class="role-name">Add Role</div>
+            <div class="role-desc">Coming soon</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-icon">🔎</span>
+        <input type="text" id="search-input" placeholder="Search topics, concepts, code patterns…"/>
+      </div>
+
+      <div id="content"></div>
+    </main>
+  </div>
+
+<script src="js/common.js"></script>
+<script src="js/data.js"></script>
+<script>
+let allSections = [];
+let progress    = {};
+
+// ── Render helpers ─────────────────────────────────────────────
+function renderDrillItem(item, idx, topicId) {
+  const aid = `ans-${topicId}-${idx}`;
+  const cid = `ac-${topicId}-${idx}`;
+  return `
+    <li class="drill-item">
+      <div class="drill-q" onclick="toggleEl('${aid}','${cid}')">
+        <span class="drill-num">${idx + 1}.</span>
+        <span class="drill-q-text">${escHtml(item.q)}</span>
+        <span class="drill-chevron" id="${cid}">▶</span>
+      </div>
+      <div class="drill-answer" id="${aid}">
+        <div class="drill-answer-inner">
+          <div class="drill-answer-label">💡 Answer</div>
+          <pre>${escHtml(item.a)}</pre>
+        </div>
+      </div>
+    </li>`;
+}
+
+function renderTopic(topic) {
+  const st      = progress[topic.id] || 'none';
+  const cardCls = st !== 'none' ? st : '';
+  const badge   = st === 'mastered'  ? `<span class="badge badge-mastered">✓ Mastered</span>`
+                : st === 'reviewing' ? `<span class="badge badge-reviewing">↻ Reviewing</span>` : '';
+  const drillHtml = (topic.drill || []).map((d, i) => renderDrillItem(d, i, topic.id)).join('');
+
+  return `
+    <div class="card topic-card ${cardCls}" id="card-${topic.id}">
+      <div class="card-header" onclick="toggleCard('${topic.id}')">
+        <div class="card-title">${escHtml(topic.title)}${badge}</div>
+        <span class="chevron" id="chev-${topic.id}">▶</span>
+      </div>
+      <div class="card-body" id="body-${topic.id}">
+        ${topic.example ? `<div class="panel panel-example"><div class="panel-label">🔵 Remember It</div><p>${escHtml(topic.example)}</p></div>` : ''}
+        <div class="panel panel-surface"><div class="panel-label">🟢 Quick Answer</div><p>${escHtml(topic.surface)}</p></div>
+        <div class="panel panel-deep"><div class="panel-label">🟠 Deep Dive</div>${renderDeepText(topic.deep)}</div>
+        <div class="panel panel-drill">
+          <div class="panel-label">🔴 Drill Questions — click to reveal</div>
+          <ul class="drill-list">${drillHtml}</ul>
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-mastered"  onclick="setStatus('${topic.id}','mastered')">✓ Mastered</button>
+          <button class="btn btn-reviewing" onclick="setStatus('${topic.id}','reviewing')">↻ Review</button>
+          <button class="btn btn-reset"     onclick="setStatus('${topic.id}','none')">Reset</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAll(sections) {
+  const content = document.getElementById('content');
+  const sidebar = document.getElementById('sidebar');
+  content.innerHTML = '';
+  sidebar.innerHTML = '';
+
+  let total = 0, mastered = 0;
+
+  // Group by chapter
+  const chapters = {};
+  sections.forEach(sec => {
+    const ch = sec.chapter || 0;
+    if (!chapters[ch]) chapters[ch] = { title: sec.chapter_title || 'General', secs: [] };
+    chapters[ch].secs.push(sec);
+  });
+  const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+
+  chNums.forEach(chNum => {
+    const { title: chTitle, secs: chSecs } = chapters[chNum];
+    const chId   = `ch-${chNum}`;
+    const isFirst = chNum === chNums[0];
+
+    let sidebarLinks = '';
+    chSecs.forEach(sec => {
+      total    += sec.topics.length;
+      mastered += sec.topics.filter(t => progress[t.id] === 'mastered').length;
+      sidebarLinks += `
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">
+            <span>${sec.icon}</span>
+            <span class="sec-badge">${sec.section_num || ''}</span>
+            ${escHtml(sec.title.replace(/^\d+\.\s*/, ''))}
+          </div>
+          ${sec.topics.map(t => `<a class="sidebar-link" href="#card-${t.id}">${escHtml(t.title)}</a>`).join('')}
+        </div>`;
+    });
+
+    sidebar.innerHTML += `
+      <div class="chapter-group">
+        <div class="chapter-header" onclick="toggleChapter('${chId}')">
+          <span class="chapter-num">Ch${chNum}</span>
+          <span class="chapter-label">${escHtml(chTitle)}</span>
+          <span class="chapter-chevron" id="chev-${chId}">${isFirst ? '▾' : '▸'}</span>
+        </div>
+        <div class="chapter-body${isFirst ? ' open' : ''}" id="${chId}">
+          ${sidebarLinks}
+        </div>
+      </div>`;
+
+    const contentSections = chSecs.map(sec => `
+      <div class="topic-section" id="sec-${sec.id}">
+        <div class="section-hdr">
+          <div class="section-icon">${sec.icon}</div>
+          <h2><span class="content-sec-num">${sec.section_num || ''}</span>${escHtml(sec.title.replace(/^\d+\.\s*/, ''))}</h2>
+        </div>
+        ${sec.topics.map(t => renderTopic(t)).join('')}
+      </div>`).join('');
+
+    content.innerHTML += `
+      <div class="chapter-content-block" id="chapter-${chNum}">
+        <div class="chapter-content-hdr">
+          <span class="ch-num-badge">Chapter ${chNum}</span>
+          <span class="ch-title">${escHtml(chTitle)}</span>
+        </div>
+        ${contentSections}
+      </div>`;
+  });
+
+  sidebar.innerHTML += `
+    <div class="sidebar-progress">
+      <div class="progress-label"><span>Mastered</span><strong>${mastered}/${total}</strong></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${total ? Math.round(mastered / total * 100) : 0}%"></div></div>
+    </div>`;
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-pill">Sections <span>${sections.length}</span></div>
+    <div class="stat-pill">Topics <span>${total}</span></div>
+    <div class="stat-pill">Mastered <span>${mastered}</span></div>
+    <div class="stat-pill">Remaining <span>${total - mastered}</span></div>`;
+
+  window.TOTAL_TOPICS = total;
+  renderNavbar('home');
+}
+
+// ── Interactions ────────────────────────────────────────────────
+function toggleChapter(chId) {
+  const body = document.getElementById(chId);
+  const chev = document.getElementById(`chev-${chId}`);
+  const open = body.classList.toggle('open');
+  if (chev) chev.textContent = open ? '▾' : '▸';
+}
+
+function toggleCard(id) {
+  const body = document.getElementById(`body-${id}`);
+  const chev = document.getElementById(`chev-${id}`);
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+}
+
+function toggleEl(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  const open = body.classList.toggle('open');
+  if (chev) chev.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function setStatus(topicId, status) {
+  Store.setTopicStatus(topicId, status);
+  progress = Store.getProgress();
+
+  const card  = document.getElementById(`card-${topicId}`);
+  const title = card.querySelector('.card-title');
+  card.classList.remove('mastered', 'reviewing');
+  if (status !== 'none') card.classList.add(status);
+  title.querySelectorAll('.badge').forEach(b => b.remove());
+  if (status === 'mastered')  title.insertAdjacentHTML('beforeend', `<span class="badge badge-mastered">✓ Mastered</span>`);
+  if (status === 'reviewing') title.insertAdjacentHTML('beforeend', `<span class="badge badge-reviewing">↻ Reviewing</span>`);
+
+  // Refresh progress bar counts
+  const total    = allSections.reduce((a, s) => a + s.topics.length, 0);
+  const mastered = Object.values(progress).filter(v => v === 'mastered').length;
+  const pct      = total ? Math.round(mastered / total * 100) : 0;
+  const fill = document.querySelector('.progress-fill');
+  if (fill) fill.style.width = pct + '%';
+  const lbl = document.querySelector('.sidebar-progress .progress-label strong');
+  if (lbl) lbl.textContent = `${mastered}/${total}`;
+  window.TOTAL_TOPICS = total;
+  renderNavbar('home');
+}
+
+function filterTopics(q) {
+  if (!q.trim()) { renderAll(allSections); return; }
+  const lq = q.toLowerCase();
+  const filtered = allSections
+    .map(sec => ({
+      ...sec,
+      topics: sec.topics.filter(t =>
+        t.title.toLowerCase().includes(lq) ||
+        (t.example || '').toLowerCase().includes(lq) ||
+        t.surface.toLowerCase().includes(lq) ||
+        t.deep.toLowerCase().includes(lq) ||
+        (t.drill || []).some(d => d.q.toLowerCase().includes(lq) || d.a.toLowerCase().includes(lq))
+      )
+    }))
+    .filter(sec => sec.topics.length > 0);
+
+  if (!filtered.length) {
+    document.getElementById('content').innerHTML = `<div class="empty"><div class="big">🔎</div><p>No results for "<strong>${escHtml(q)}</strong>"</p></div>`;
+  } else {
+    renderAll(filtered);
+  }
+}
+
+// ── Init ────────────────────────────────────────────────────────
+function init() {
+  progress    = Store.getProgress();
+  allSections = window.AI_SECTIONS || [];
+  renderAll(allSections);
+  document.getElementById('search-input').addEventListener('input', e => filterTopics(e.target.value));
+}
+
+init();
+</script>
+</body>
+</html>

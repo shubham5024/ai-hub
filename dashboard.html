@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dashboard — AI Prep Hub</title>
+  <link rel="stylesheet" href="css/app.css"/>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="layout" style="display:block">
+    <main class="main" style="max-width:1100px;margin:0 auto">
+
+      <header class="page-header">
+        <h1>Your Readiness Dashboard</h1>
+        <p>All data stored locally in your browser. Updated every time you rate a question.</p>
+      </header>
+
+      <!-- Hero readiness ring -->
+      <div class="ready-hero" id="ready-hero">
+        <div class="ready-ring">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="50" fill="none" id="ring-arc"
+              stroke="var(--green)" stroke-width="12"
+              stroke-dasharray="314" stroke-dashoffset="314"
+              stroke-linecap="round" style="transition:stroke-dashoffset 1s,stroke 0.5s"/>
+          </svg>
+          <div class="ready-ring-label">
+            <div class="ready-pct" id="ring-pct" style="color:var(--green)">0%</div>
+            <div class="ready-word">Ready</div>
+          </div>
+        </div>
+        <div class="ready-info">
+          <h2 id="ready-headline">Calculating…</h2>
+          <p  id="ready-sub"></p>
+          <div class="ready-meta" id="ready-meta"></div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <!-- Section readiness -->
+        <div class="dash-card" id="section-card">
+          <h3>📊 Section Readiness</h3>
+          <div id="section-rows"><p style="color:var(--muted);font-size:13px">No data yet — rate some questions first.</p></div>
+        </div>
+
+        <!-- Streak -->
+        <div class="dash-card">
+          <h3>🔥 Study Streak</h3>
+          <div class="streak-display">
+            <div class="streak-num" id="streak-num">0</div>
+            <div class="streak-info">
+              <p><strong>consecutive days</strong> with ≥5 questions rated</p>
+              <p id="streak-sub" style="margin-top:6px"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Score trend -->
+        <div class="dash-card">
+          <h3>📈 Daily Avg Score (last 30 days)</h3>
+          <div class="chart-wrap"><svg class="chart-svg" id="trend-svg"></svg></div>
+        </div>
+
+        <!-- Weak spots -->
+        <div class="dash-card">
+          <h3>⚠️ Weak Spots (avg score &lt; 3)</h3>
+          <div id="weak-list"><p style="color:var(--muted);font-size:13px">No data yet.</p></div>
+        </div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="dash-card" style="margin-bottom:28px">
+        <h3>📅 Activity Heatmap (last 60 days)</h3>
+        <div class="heatmap-wrap">
+          <div class="heatmap-grid" id="heatmap-grid"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:10px;color:var(--muted)">
+          Less
+          <span class="hm-cell" style="display:inline-block"></span>
+          <span class="hm-cell" style="display:inline-block" data-level="1"></span>
+          <span class="hm-cell" style="display:inline-block" data-level="3"></span>
+          <span class="hm-cell" style="display:inline-block" data-level="5"></span>
+          More
+        </div>
+      </div>
+
+      <!-- Mastered topics -->
+      <div class="dash-card" style="margin-bottom:28px">
+        <h3>✅ Mastered Topics</h3>
+        <div id="mastered-list"><p style="color:var(--muted);font-size:13px">No topics mastered yet.</p></div>
+      </div>
+
+    </main>
+  </div>
+
+<script src="js/common.js"></script>
+<script src="js/data.js"></script>
+<script>
+function init() {
+  const sections = window.AI_SECTIONS || [];
+  const progress = Store.getProgress();
+  const daily    = Store.getDailyActivity();
+  const allScores= Store.getAllScores();
+  const weakSpots= Store.getWeakSpots();
+  const streak   = Store.getStreak();
+
+  // Compute stats
+  let totalDrills = 0, allAttempted = 0;
+  const sectionStats = sections.map(sec => {
+    let secDrills = 0, secAttempted = 0, secScoreSum = 0;
+    sec.topics.forEach(t => {
+      (t.drill || []).forEach((d, i) => {
+        totalDrills++;
+        secDrills++;
+        const key   = `${t.id}::${i}`;
+        const score = allScores[key];
+        if (score) { secAttempted++; allAttempted++; secScoreSum += score; }
+      });
+    });
+    const readiness = secDrills
+      ? Math.round((secAttempted / secDrills) * (secAttempted ? secScoreSum / secAttempted / 5 : 0) * 100)
+      : 0;
+    return { id: sec.id, title: sec.title, icon: sec.icon, readiness };
+  });
+
+  const overallReady = totalDrills
+    ? Math.round((allAttempted / totalDrills) * (allAttempted ? Object.values(allScores).reduce((a, b) => a + b, 0) / allAttempted / 5 : 0) * 100)
+    : 0;
+
+  // Readiness ring
+  const arcEl  = document.getElementById('ring-arc');
+  const pctEl  = document.getElementById('ring-pct');
+  const circum = 314;
+  const color  = getReadinessColor(overallReady);
+  setTimeout(() => {
+    arcEl.style.strokeDashoffset = circum - (overallReady / 100) * circum;
+    arcEl.style.stroke = color;
+  }, 100);
+  pctEl.textContent = overallReady + '%';
+  pctEl.style.color = color;
+
+  document.getElementById('ready-headline').textContent =
+    overallReady >= 80 ? '🟢 You are interview-ready!' :
+    overallReady >= 50 ? '🟡 Good progress — keep going' :
+    overallReady >= 20 ? '🟠 Getting started — daily practice needed' :
+    '🔴 Just beginning — lots to cover';
+
+  document.getElementById('ready-sub').textContent =
+    `${allAttempted} of ${totalDrills} questions rated · readiness = coverage × avg score`;
+
+  document.getElementById('ready-meta').innerHTML = `
+    <div class="ready-meta-item"><div class="val">${totalDrills}</div><div class="lbl">Total Drills</div></div>
+    <div class="ready-meta-item"><div class="val">${allAttempted}</div><div class="lbl">Attempted</div></div>
+    <div class="ready-meta-item"><div class="val">${streak}</div><div class="lbl">Day Streak 🔥</div></div>
+    <div class="ready-meta-item"><div class="val">${sectionStats.filter(s => s.readiness >= 80).length}</div><div class="lbl">Sections Ready</div></div>`;
+
+  // Section rows
+  document.getElementById('section-rows').innerHTML = sectionStats.map(s => {
+    const clr = getReadinessColor(s.readiness);
+    return `
+      <div class="sec-row">
+        <span class="sec-row-icon">${s.icon}</span>
+        <span class="sec-row-name" title="${escHtml(s.title)}">${escHtml(s.title.replace(/^\d+\.\s*/, ''))}</span>
+        <div class="sec-bar-track"><div class="sec-bar-fill" style="width:${s.readiness}%;background:${clr}"></div></div>
+        <span class="sec-row-pct" style="color:${clr}">${s.readiness}%</span>
+      </div>`;
+  }).join('');
+
+  // Streak
+  document.getElementById('streak-num').textContent = streak;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayRow = daily.find(d => d.day === todayKey);
+  document.getElementById('streak-sub').innerHTML = todayRow
+    ? `Today: <strong>${todayRow.total_reviewed} questions</strong> rated, avg <strong>${todayRow.avg_score}</strong>`
+    : `No questions rated today yet. <a href="questions.html">Start your session →</a>`;
+
+  // Score trend
+  renderTrendChart(daily.slice(-30));
+
+  // Weak spots
+  const weakEl = document.getElementById('weak-list');
+  if (!weakSpots.length) {
+    weakEl.innerHTML = `<p style="color:var(--green);font-size:13px">✅ No weak spots! All attempted questions average ≥ 3.</p>`;
+  } else {
+    const SCORE_COLORS = ['','var(--red)','var(--orange)','var(--yellow)','var(--green)','var(--accent)'];
+    weakEl.innerHTML = weakSpots.map(w => {
+      const clr = SCORE_COLORS[Math.round(w.avg_score)] || 'var(--red)';
+      return `
+        <div class="weak-item">
+          <div class="weak-score-badge" style="background:${clr}20;border:1px solid ${clr};color:${clr}">${w.avg_score}</div>
+          <div class="weak-body">
+            <div class="weak-q">${escHtml(w.question_text || 'Question #' + (w.question_index + 1))}</div>
+            <div class="weak-meta">${escHtml(w.topic_id)} · ${w.attempts} attempt${w.attempts > 1 ? 's' : ''}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Heatmap
+  renderHeatmap(daily);
+
+  // Mastered topics
+  const masteredIds = Object.entries(progress).filter(([, v]) => v === 'mastered').map(([k]) => k);
+  const masteredEl  = document.getElementById('mastered-list');
+  if (!masteredIds.length) {
+    masteredEl.innerHTML = `<p style="color:var(--muted);font-size:13px">No topics mastered yet. Keep going!</p>`;
+  } else {
+    const topicMap = {};
+    sections.forEach(sec => sec.topics.forEach(t => { topicMap[t.id] = { title: t.title, secTitle: sec.title }; }));
+    masteredEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;">` +
+      masteredIds.map(id => {
+        const t = topicMap[id] || { title: id, secTitle: '' };
+        return `<span style="background:var(--green-soft);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;">✓ ${escHtml(t.title)}</span>`;
+      }).join('') + `</div>`;
+  }
+
+  window.TOTAL_TOPICS = sections.reduce((a, s) => a + s.topics.length, 0);
+  renderNavbar('dashboard');
+}
+
+function renderTrendChart(data) {
+  const svg = document.getElementById('trend-svg');
+  if (!data.length) {
+    svg.innerHTML = `<text x="50%" y="50%" fill="var(--muted)" font-size="12" text-anchor="middle">No data yet — rate some questions</text>`;
+    return;
+  }
+  const W = svg.clientWidth || 420, H = 90;
+  const maxScore = 5, minScore = 1;
+  const padL = 26, padR = 8, padT = 8, padB = 20;
+  const W2 = W - padL - padR, H2 = H - padT - padB;
+
+  const points = data.map((d, i) => ({
+    x: padL + (i / Math.max(data.length - 1, 1)) * W2,
+    y: padT + H2 - ((d.avg_score - minScore) / (maxScore - minScore)) * H2,
+    d
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaD = pathD + ` L${points[points.length - 1].x},${padT + H2} L${padL},${padT + H2} Z`;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7C6FFF" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#7C6FFF" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${[1,2,3,4,5].map(v => {
+      const y = padT + H2 - ((v - minScore) / (maxScore - minScore)) * H2;
+      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + W2}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
+              <text x="${padL - 5}" y="${(y + 4).toFixed(1)}" fill="var(--muted)" font-size="9" text-anchor="end">${v}</text>`;
+    }).join('')}
+    <path d="${areaD}" fill="url(#ag)"/>
+    <path d="${pathD}" fill="none" stroke="#7C6FFF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${points.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#7C6FFF"/>`).join('')}`;
+}
+
+function renderHeatmap(daily) {
+  const grid  = document.getElementById('heatmap-grid');
+  const map   = {};
+  daily.forEach(d => { map[d.day] = d.total_reviewed; });
+
+  const today = new Date();
+  const cells = [];
+  for (let i = 59; i >= 0; i--) {
+    const d   = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const cnt = map[key] || 0;
+    const lvl = cnt === 0 ? 0 : cnt < 5 ? 1 : cnt < 10 ? 2 : cnt < 20 ? 3 : cnt < 40 ? 4 : 5;
+    cells.push({ key, cnt, lvl });
+  }
+
+  grid.innerHTML = cells.map(c =>
+    `<div class="hm-cell" data-level="${c.lvl}" title="${c.key}: ${c.cnt} questions"></div>`
+  ).join('');
+}
+
+init();
+</script>
+</body>
+</html>

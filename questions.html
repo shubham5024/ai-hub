@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Drill Questions — AI Prep Hub</title>
+  <link rel="stylesheet" href="css/app.css"/>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="layout">
+    <!-- Sidebar: filters -->
+    <aside class="sidebar" id="sidebar-filters">
+      <div style="padding:14px 16px; border-bottom:1px solid var(--border);">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Filter by Section</div>
+        <div id="section-filters"></div>
+      </div>
+      <div style="padding:14px 16px;">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Filter by Score</div>
+        <div id="score-filters">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="unrated" checked onchange="applyFilters()"/> Not yet rated
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--red);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="1" checked onchange="applyFilters()"/> 1 — Blank
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--orange);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="2" checked onchange="applyFilters()"/> 2 — Vague
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--yellow);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="3" checked onchange="applyFilters()"/> 3 — Surface only
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="4" checked onchange="applyFilters()"/> 4 — Good
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" value="5" checked onchange="applyFilters()"/> 5 — Perfect
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <h1>All Drill Questions</h1>
+        <p>Rate yourself 1–5 every morning. Scores are saved locally and tracked in your Dashboard.</p>
+      </header>
+
+      <!-- Session stats -->
+      <div class="session-bar">
+        <div class="session-stat"><div class="val" id="s-total">0</div><div class="lbl">Total Qs</div></div>
+        <div class="session-stat"><div class="val" id="s-rated">0</div><div class="lbl">Rated Today</div></div>
+        <div class="session-stat"><div class="val" id="s-avg">—</div><div class="lbl">Avg Score</div></div>
+        <div class="session-stat"><div class="val" id="s-weak">0</div><div class="lbl">Weak (≤2)</div></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" onclick="expandAll()">Expand All</button>
+        <button class="btn btn-reset"   onclick="collapseAll()">Collapse All</button>
+      </div>
+
+      <div class="score-legend">
+        <span><span class="dot" style="background:var(--red)"></span>1 Blank</span>
+        <span><span class="dot" style="background:var(--orange)"></span>2 Vague</span>
+        <span><span class="dot" style="background:var(--yellow)"></span>3 Surface</span>
+        <span><span class="dot" style="background:var(--green)"></span>4 Good</span>
+        <span><span class="dot" style="background:var(--accent)"></span>5 Perfect</span>
+      </div>
+
+      <div id="q-content"></div>
+    </main>
+  </div>
+
+<script src="js/common.js"></script>
+<script src="js/data.js"></script>
+<script>
+let allSections  = [];
+let todayScores  = {};
+let allQuestions = [];
+
+const SCORE_COLORS = ['', 'var(--red)', 'var(--orange)', 'var(--yellow)', 'var(--green)', 'var(--accent)'];
+const SCORE_LABELS = ['', 'Blank', 'Vague', 'Surface only', 'Good answer', 'Perfect — nailed it'];
+
+function buildFlatList(sections) {
+  const list = [];
+  sections.forEach(sec => {
+    sec.topics.forEach(topic => {
+      (topic.drill || []).forEach((d, i) => {
+        list.push({
+          secId: sec.id, secTitle: sec.title, secIcon: sec.icon,
+          topicId: topic.id, topicTitle: topic.title,
+          qIdx: i, q: d.q, a: d.a
+        });
+      });
+    });
+  });
+  return list;
+}
+
+function getScore(topicId, qIdx) {
+  return todayScores[`${topicId}::${qIdx}`] || 0;
+}
+
+function renderQCard(item, globalIdx) {
+  const score  = getScore(item.topicId, item.qIdx);
+  const dotClr = score ? SCORE_COLORS[score] : 'var(--border)';
+  const bodyId = `qb-${item.topicId}-${item.qIdx}`;
+  const chevId = `qc-${item.topicId}-${item.qIdx}`;
+
+  return `
+    <div class="q-card" id="qcard-${item.topicId}-${item.qIdx}" data-sec="${item.secId}" data-score="${score}">
+      <div class="q-card-header" onclick="toggleQ('${bodyId}','${chevId}')">
+        <span class="q-num">${globalIdx + 1}</span>
+        <span class="q-text">${escHtml(item.q)}</span>
+        <div class="q-meta">
+          <span class="badge badge-section" style="font-size:9px">${escHtml(item.secIcon)} ${escHtml(item.topicTitle)}</span>
+          <div class="q-score-badge" id="dot-${item.topicId}-${item.qIdx}"
+            style="background:${dotClr}20;border-color:${dotClr};color:${dotClr}">
+            ${score || '?'}
+          </div>
+          <span class="drill-chevron" id="${chevId}">▶</span>
+        </div>
+      </div>
+      <div class="q-body" id="${bodyId}">
+        <div class="q-body-inner">
+          <div class="q-answer-label">💡 Answer</div>
+          <pre>${escHtml(item.a)}</pre>
+          <div class="score-row">
+            <label>How well did you know this?</label>
+            <div class="score-btns">
+              ${[1, 2, 3, 4, 5].map(n => `
+                <button class="score-btn ${score === n ? `s${n}` : ''}"
+                  id="sb-${item.topicId}-${item.qIdx}-${n}"
+                  onclick="rateQ('${item.topicId}','${item.secId}',${item.qIdx},${n},${JSON.stringify(item.q).replace(/</g, '&lt;')})"
+                  title="${SCORE_LABELS[n]}">${n}</button>
+              `).join('')}
+            </div>
+            ${score ? `<span style="font-size:11px;color:${SCORE_COLORS[score]}">${SCORE_LABELS[score]}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderQuestions(questions) {
+  const content = document.getElementById('q-content');
+  if (!questions.length) {
+    content.innerHTML = `<div class="empty"><div class="big">✅</div><p>No questions match your filters.</p></div>`;
+    return updateSessionStats();
+  }
+
+  const grouped = {};
+  questions.forEach((q, i) => {
+    if (!grouped[q.secId]) grouped[q.secId] = { sec: q, items: [] };
+    grouped[q.secId].items.push({ ...q, globalIdx: i });
+  });
+
+  content.innerHTML = Object.values(grouped).map(g => `
+    <div class="section-group">
+      <div class="section-group-hdr">${g.sec.secIcon} ${escHtml(g.sec.secTitle)}</div>
+      ${g.items.map(item => renderQCard(item, item.globalIdx)).join('')}
+    </div>`).join('');
+
+  updateSessionStats();
+}
+
+function updateSessionStats() {
+  const total  = allQuestions.length;
+  const rated  = Object.keys(todayScores).length;
+  const scores = Object.values(todayScores);
+  const avg    = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
+  const weak   = scores.filter(s => s <= 2).length;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-rated').textContent = rated;
+  document.getElementById('s-avg').textContent   = avg;
+  document.getElementById('s-weak').textContent  = weak;
+}
+
+function applyFilters() {
+  const checkedSecs   = Array.from(document.querySelectorAll('#section-filters input:checked')).map(i => i.value);
+  const checkedScores = Array.from(document.querySelectorAll('#score-filters input:checked')).map(i => i.value);
+
+  const filtered = allQuestions.filter(q => {
+    if (!checkedSecs.includes(q.secId)) return false;
+    const sc = getScore(q.topicId, q.qIdx);
+    if (sc === 0 && checkedScores.includes('unrated')) return true;
+    if (sc > 0  && checkedScores.includes(String(sc))) return true;
+    return false;
+  });
+  renderQuestions(filtered);
+}
+
+function buildSectionFilters(sections) {
+  document.getElementById('section-filters').innerHTML = sections.map(sec => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:7px;cursor:pointer;">
+      <input type="checkbox" value="${sec.id}" checked onchange="applyFilters()"/>
+      ${sec.icon} ${escHtml(sec.title.replace(/^\d+\.\s*/, ''))}
+    </label>`).join('');
+}
+
+function toggleQ(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  const open = body.classList.toggle('open');
+  if (chev) chev.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function rateQ(topicId, secId, qIdx, score, qText) {
+  Store.setScore(topicId, qIdx, score, qText);
+  todayScores[`${topicId}::${qIdx}`] = score;
+
+  const dot = document.getElementById(`dot-${topicId}-${qIdx}`);
+  const clr = SCORE_COLORS[score];
+  if (dot) { dot.textContent = score; dot.style.background = clr + '20'; dot.style.borderColor = clr; dot.style.color = clr; }
+
+  for (let n = 1; n <= 5; n++) {
+    const btn = document.getElementById(`sb-${topicId}-${qIdx}-${n}`);
+    if (btn) btn.className = `score-btn ${n === score ? 's' + score : ''}`;
+  }
+  updateSessionStats();
+}
+
+function expandAll()   { document.querySelectorAll('.q-body').forEach(b => b.classList.add('open')); document.querySelectorAll('.drill-chevron').forEach(c => c.style.transform = 'rotate(90deg)'); }
+function collapseAll() { document.querySelectorAll('.q-body').forEach(b => b.classList.remove('open')); document.querySelectorAll('.drill-chevron').forEach(c => c.style.transform = ''); }
+
+function init() {
+  allSections  = window.AI_SECTIONS || [];
+  todayScores  = Store.getTodayScores();
+  allQuestions = buildFlatList(allSections);
+  window.TOTAL_TOPICS = allSections.reduce((a, s) => a + s.topics.length, 0);
+  renderNavbar('questions');
+  buildSectionFilters(allSections);
+  renderQuestions(allQuestions);
+}
+
+init();
+</script>
+</body>
+</html>
