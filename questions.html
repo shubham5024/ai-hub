@@ -294,7 +294,7 @@ function renderQCard(item, globalIdx) {
           <pre>${escHtml(item.a)}</pre>
         </div>
         <div class="action-row">
-          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.learn > 0 ? ' locked' : ''}"
+          <button class="action-btn btn-learn${last === 'learn' ? ' active' : ''}${counts.done > 0 ? ' locked' : ''}"
             id="bl-${item.topicId}-${item.qIdx}"
             onclick="markQ('${item.topicId}',${item.qIdx},'learn')">
             📖 Learn <span class="count-badge" id="cl-${item.topicId}-${item.qIdx}">${counts.learn || 0}</span>
@@ -382,17 +382,18 @@ function markQ(topicId, qIdx, action) {
 
   if (btnLearn) {
     btnLearn.classList.toggle('active', action === 'learn');
-    // Lock Learn after first click (c.learn >= 1) OR after Revise
-    btnLearn.classList.toggle('locked', c.learn > 0);
+    // Lock Learn only after Done is clicked
+    btnLearn.classList.toggle('locked', c.done > 0);
   }
   if (btnDone) {
     btnDone.classList.toggle('active', action === 'done');
-    // Unlock once Learn clicked, re-lock after Done clicked once
+    // Unlock Done once Learn clicked; lock permanently after Done clicked once
     if (c.learn > 0 && c.done === 0) btnDone.classList.remove('locked');
     if (c.done > 0) btnDone.classList.add('locked');
   }
   if (btnRevised) {
     btnRevised.classList.toggle('active', action === 'revised');
+    // Unlock Revise once Learn clicked — stays re-clickable forever
     if (c.learn > 0) btnRevised.classList.remove('locked');
   }
 
