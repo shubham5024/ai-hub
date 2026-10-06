@@ -180,7 +180,7 @@ function renderDrillItem(item, idx, topicId, secMeta) {
             onclick="resetDrillQ('${topicId}',${idx})">
             ↺ Reset <span class="d-count-badge" id="dcx-${topicId}-${idx}">${counts.reset || 0}</span>
           </button>
-          <button class="d-action-btn d-btn-note-q${Store.getNote(`${topicId}::${idx}`) ? ' has-note' : ''}"
+          <button class="d-action-btn d-btn-note-q${Store.getNote(topicId+'::'+idx) ? ' has-note' : ''}"
             id="nb-${topicId}-${idx}"
             data-nkey="${topicId}::${idx}"
             data-ntitle="${escHtml(item.q).slice(0,80)}"

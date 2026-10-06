@@ -330,7 +330,7 @@ function renderQCard(item, globalIdx) {
             onclick="resetQ('${item.topicId}',${item.qIdx})">
             ↺ Reset <span class="count-badge" id="cx-${item.topicId}-${item.qIdx}">${counts.reset || 0}</span>
           </button>
-          <button class="action-btn btn-note-q${Store.getNote(`${item.topicId}::${item.qIdx}`) ? ' has-note' : ''}"
+          <button class="action-btn btn-note-q${Store.getNote(item.topicId+'::'+item.qIdx) ? ' has-note' : ''}"
             id="nb-${item.topicId}-${item.qIdx}"
             data-nkey="${item.topicId}::${item.qIdx}"
             data-ntitle="${escHtml(item.q).slice(0,80)}"
