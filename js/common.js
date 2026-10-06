@@ -192,7 +192,8 @@ const Store = {
       out[k] = { learn: v.learnCount, done: v.doneCount, revised: v.revisedCount, reset: v.resetCount || 0, last: v.lastAction };
     });
     return out;
-  }
+  },
+
   // ── Notes ──────────────────────────────────────────────────
   _notes_key: 'ai_prep_notes',
   getNotes() {
