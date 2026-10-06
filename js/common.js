@@ -193,7 +193,104 @@ const Store = {
     });
     return out;
   }
+  // ── Notes ──────────────────────────────────────────────────
+  _notes_key: 'ai_prep_notes',
+  getNotes() {
+    try { return JSON.parse(localStorage.getItem(this._notes_key) || '{}'); } catch { return {}; }
+  },
+  saveNote(key, text) {
+    const notes = this.getNotes();
+    if (text.trim() === '') { delete notes[key]; } else { notes[key] = { text, updatedAt: new Date().toISOString() }; }
+    localStorage.setItem(this._notes_key, JSON.stringify(notes));
+  },
+  getNote(key) {
+    return this.getNotes()[key] || null;
+  }
 };
+
+// ── Notes Modal ──────────────────────────────────────────────────
+function initNotesModal() {
+  if (document.getElementById('notes-modal')) return;
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div id="notes-modal" style="
+      display:none; position:fixed; inset:0; z-index:1000;
+      background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+      <div style="
+        background:#1E1C16; border:1px solid #F5C842; border-radius:12px;
+        width:min(560px,92vw); max-height:80vh; display:flex; flex-direction:column;
+        box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+        <div style="padding:16px 20px; border-bottom:1px solid #2E2B22; display:flex; align-items:center; gap:10px;">
+          <span style="font-size:16px;">📝</span>
+          <div style="flex:1">
+            <div id="notes-modal-title" style="font-size:13px;font-weight:700;color:#F0EBE0;"></div>
+            <div id="notes-modal-sub" style="font-size:10.5px;color:#8A867A;margin-top:2px;"></div>
+          </div>
+          <div id="notes-modal-status" style="font-size:10px;color:#8A867A;"></div>
+          <button onclick="closeNotesModal()" style="
+            background:transparent;border:none;color:#8A867A;font-size:18px;
+            cursor:pointer;padding:2px 6px;line-height:1;">×</button>
+        </div>
+        <textarea id="notes-modal-input" placeholder="Type your notes here… auto-saved as you type." style="
+          flex:1; min-height:220px; background:#15130E; border:none; outline:none;
+          color:#F0EBE0; font-size:13.5px; font-family:'Inter',sans-serif;
+          line-height:1.8; padding:18px 20px; resize:vertical;
+          border-radius:0 0 12px 12px;"></textarea>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+
+  // Auto-save on input with 500ms debounce
+  let _debounce;
+  document.getElementById('notes-modal-input').addEventListener('input', function() {
+    const status = document.getElementById('notes-modal-status');
+    status.textContent = 'saving…';
+    clearTimeout(_debounce);
+    _debounce = setTimeout(() => {
+      const key = this.dataset.noteKey;
+      if (key) {
+        Store.saveNote(key, this.value);
+        status.textContent = '✓ saved';
+        // Update note indicator on button
+        const nb = document.getElementById('nb-' + key.replace('::', '-'));
+        if (nb) nb.classList.toggle('has-note', this.value.trim() !== '');
+      }
+    }, 500);
+  });
+
+  // Close on backdrop click
+  document.getElementById('notes-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeNotesModal();
+  });
+}
+
+function openNotesModal(key, questionText, subText) {
+  initNotesModal();
+  const modal    = document.getElementById('notes-modal');
+  const textarea = document.getElementById('notes-modal-input');
+  const title    = document.getElementById('notes-modal-title');
+  const sub      = document.getElementById('notes-modal-sub');
+  const status   = document.getElementById('notes-modal-status');
+
+  textarea.dataset.noteKey = key;
+  title.textContent  = questionText || 'Note';
+  sub.textContent    = subText || '';
+  status.textContent = '';
+
+  const existing = Store.getNote(key);
+  textarea.value = existing ? existing.text : '';
+
+  modal.style.display = 'flex';
+  setTimeout(() => textarea.focus(), 50);
+}
+
+function closeNotesModal() {
+  const modal = document.getElementById('notes-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotesModal(); });
 
 // ── Navbar ───────────────────────────────────────────────────────
 function renderNavbar(activePage) {
@@ -219,6 +316,7 @@ function renderNavbar(activePage) {
       <a href="${BASE}index.html"     class="nav-link ${activePage === 'home'      ? 'active' : ''}">🏠 Study</a>
       <a href="${BASE}questions.html" class="nav-link ${activePage === 'questions' ? 'active' : ''}">📖 Drill</a>
       <a href="${BASE}dashboard.html" class="nav-link ${activePage === 'dashboard' ? 'active' : ''}">📊 Dashboard</a>
+      <a href="${BASE}notes.html"     class="nav-link ${activePage === 'notes'     ? 'active' : ''}">📝 Notes</a>
     </div>
     <div class="nav-progress-pill">
       <span title="Learned today"  style="color:var(--blue)">📖 <strong>${learnU}</strong></span>

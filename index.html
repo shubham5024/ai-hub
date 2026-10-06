@@ -59,6 +59,15 @@
       margin-left: auto;
     }
     .d-btn-reset-q:hover { color: var(--text) !important; border-color: var(--muted2) !important; }
+    .d-btn-note-q {
+      background: transparent !important;
+      color: var(--muted) !important;
+      border: 1px solid var(--border) !important;
+      font-size: 13px !important;
+      padding: 4px 9px !important;
+    }
+    .d-btn-note-q:hover { color: var(--gold) !important; border-color: var(--gold-border) !important; }
+    .d-btn-note-q.has-note { color: var(--gold) !important; border-color: var(--gold-border) !important; background: var(--gold-bg) !important; }
     .d-count-badge {
       font-size: 9.5px; font-weight: 800;
       background: rgba(255,255,255,0.10);
@@ -170,6 +179,14 @@ function renderDrillItem(item, idx, topicId, secMeta) {
             id="dbx-${topicId}-${idx}"
             onclick="resetDrillQ('${topicId}',${idx})">
             ↺ Reset <span class="d-count-badge" id="dcx-${topicId}-${idx}">${counts.reset || 0}</span>
+          </button>
+          <button class="d-action-btn d-btn-note-q${Store.getNote(`${topicId}::${idx}`) ? ' has-note' : ''}"
+            id="nb-${topicId}-${idx}"
+            data-nkey="${topicId}::${idx}"
+            data-ntitle="${escHtml(item.q).slice(0,80)}"
+            data-nsub="${escHtml(secMeta.title || '')}"
+            onclick="openNotesModal(this.dataset.nkey, this.dataset.ntitle, this.dataset.nsub)">
+            📝
           </button>
         </div>
       </div>

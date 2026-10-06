@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Notes — AI Prep Hub</title>
+  <link rel="stylesheet" href="css/app.css"/>
+  <style>
+    .notes-empty { text-align:center; padding:64px 20px; color:var(--muted); }
+    .notes-empty .big { font-size:44px; margin-bottom:14px; }
+
+    .note-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .note-card:hover { border-color: var(--gold); }
+    .note-q {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      margin-bottom: 6px; line-height: 1.5;
+    }
+    .note-meta {
+      font-size: 10.5px; color: var(--muted);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .note-text {
+      font-size: 13px; color: var(--text-2);
+      white-space: pre-wrap; line-height: 1.75;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      border: 1px solid var(--border-soft);
+    }
+    .note-actions {
+      display: flex; gap: 8px; margin-top: 10px;
+    }
+    .note-edit-btn {
+      font-size: 11px; font-weight: 700;
+      padding: 4px 12px; border-radius: var(--radius-sm);
+      background: var(--gold-bg); color: var(--gold);
+      border: 1px solid var(--gold-border);
+      cursor: pointer; font-family: var(--font);
+    }
+    .note-edit-btn:hover { background: rgba(245,200,66,0.15); }
+    .note-del-btn {
+      font-size: 11px; font-weight: 700;
+      padding: 4px 12px; border-radius: var(--radius-sm);
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+      cursor: pointer; font-family: var(--font);
+    }
+    .note-del-btn:hover { color: var(--red); border-color: var(--red-border); }
+
+    .notes-header-row {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .notes-count-pill {
+      background: var(--gold-bg); border: 1px solid var(--gold-border);
+      color: var(--gold); font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px;
+    }
+    .notes-search {
+      flex: 1; min-width: 200px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 7px 14px;
+      color: var(--text); font-size: 13px; font-family: var(--font); outline: none;
+    }
+    .notes-search:focus { border-color: var(--gold); }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div class="layout" style="display:block">
+    <main class="main" style="max-width:820px;margin:0 auto">
+
+      <header class="page-header">
+        <h1>My Notes</h1>
+        <p>All notes you've written across every drill question — auto-saved, always here.</p>
+      </header>
+
+      <div class="notes-header-row">
+        <span class="notes-count-pill" id="notes-count">0 notes</span>
+        <input type="text" class="notes-search" id="notes-search"
+          placeholder="Search notes…" oninput="filterNotes(this.value)"/>
+        <button class="btn btn-reset" onclick="clearAllNotes()"
+          style="font-size:11px;">🗑 Clear All</button>
+      </div>
+
+      <div id="notes-list"></div>
+
+    </main>
+  </div>
+
+<script src="js/common.js"></script>
+<script src="js/data.js"></script>
+<script>
+// Build a flat lookup: "topicId::qIdx" → { q, topicTitle, sectionTitle, chapter_title }
+const qLookup = {};
+function buildLookup() {
+  (window.AI_SECTIONS || []).forEach(sec => {
+    sec.topics.forEach(topic => {
+      (topic.drill || []).forEach((d, i) => {
+        qLookup[`${topic.id}::${i}`] = {
+          q: d.q,
+          topicTitle: topic.title,
+          sectionTitle: sec.title.replace(/^\d+\.\s*/, ''),
+          chapter_title: sec.chapter_title || '',
+          section_num: sec.section_num || ''
+        };
+      });
+    });
+  });
+}
+
+let allNotes = [];
+
+function loadNotes() {
+  const raw = Store.getNotes();
+  allNotes = Object.entries(raw).map(([key, val]) => {
+    const meta = qLookup[key] || {};
+    return { key, text: val.text, updatedAt: val.updatedAt, ...meta };
+  }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+}
+
+function renderNotes(list) {
+  const el = document.getElementById('notes-list');
+  document.getElementById('notes-count').textContent = `${list.length} note${list.length !== 1 ? 's' : ''}`;
+
+  if (!list.length) {
+    el.innerHTML = `<div class="notes-empty"><div class="big">📝</div><p>No notes yet.<br/>Click the 📝 button on any drill question to add one.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(n => {
+    const date = n.updatedAt ? new Date(n.updatedAt).toLocaleString() : '';
+    return `
+      <div class="note-card" id="nc-${n.key.replace('::','-')}">
+        <div class="note-q">${escHtml(n.q || n.key)}</div>
+        <div class="note-meta">
+          ${n.section_num ? `<span style="color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-border);padding:1px 6px;border-radius:3px;font-size:9px;font-weight:800">${escHtml(n.section_num)}</span>` : ''}
+          ${n.topicTitle ? `<span>${escHtml(n.topicTitle)}</span>` : ''}
+          ${date ? `<span style="margin-left:auto">${date}</span>` : ''}
+        </div>
+        <div class="note-text">${escHtml(n.text)}</div>
+        <div class="note-actions">
+          <button class="note-edit-btn"
+            data-nkey="${n.key}"
+            data-ntitle="${escHtml((n.q || '').slice(0,80))}"
+            data-nsub="${escHtml(n.topicTitle || '')}"
+            onclick="openNotesModal(this.dataset.nkey, this.dataset.ntitle, this.dataset.nsub); currentEditKey='${n.key}';">
+            ✏️ Edit
+          </button>
+          <button class="note-del-btn" onclick="deleteNote('${n.key}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterNotes(q) {
+  if (!q.trim()) { renderNotes(allNotes); return; }
+  const lq = q.toLowerCase();
+  renderNotes(allNotes.filter(n =>
+    (n.text || '').toLowerCase().includes(lq) ||
+    (n.q || '').toLowerCase().includes(lq) ||
+    (n.topicTitle || '').toLowerCase().includes(lq)
+  ));
+}
+
+function deleteNote(key) {
+  if (!confirm('Delete this note?')) return;
+  Store.saveNote(key, ''); // empty = deletes
+  loadNotes();
+  filterNotes(document.getElementById('notes-search').value);
+}
+
+function clearAllNotes() {
+  if (!allNotes.length) return;
+  if (!confirm(`Delete all ${allNotes.length} notes? This cannot be undone.`)) return;
+  allNotes.forEach(n => Store.saveNote(n.key, ''));
+  loadNotes();
+  renderNotes(allNotes);
+}
+
+// Re-render after modal saves (auto-save updates the list live)
+let _refreshInterval;
+function startLiveRefresh() {
+  _refreshInterval = setInterval(() => {
+    const prev = allNotes.length;
+    loadNotes();
+    if (allNotes.length !== prev) {
+      filterNotes(document.getElementById('notes-search').value);
+    }
+  }, 1500);
+}
+
+function init() {
+  buildLookup();
+  loadNotes();
+  window.TOTAL_TOPICS = (window.AI_SECTIONS || []).reduce((a, s) => a + s.topics.length, 0);
+  renderNavbar('notes');
+  renderNotes(allNotes);
+  startLiveRefresh();
+}
+
+init();
+</script>
+</body>
+</html>

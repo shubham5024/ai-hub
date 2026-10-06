@@ -56,6 +56,15 @@
     .action-btn:disabled, .action-btn.locked {
       opacity: 0.28; cursor: not-allowed; pointer-events: none;
     }
+    .btn-note-q {
+      background: transparent !important;
+      color: var(--muted) !important;
+      border: 1px solid var(--border) !important;
+      font-size: 13px !important;
+      padding: 5px 10px !important;
+    }
+    .btn-note-q:hover { color: var(--gold) !important; border-color: var(--gold-border) !important; }
+    .btn-note-q.has-note { color: var(--gold) !important; border-color: var(--gold-border) !important; background: var(--gold-bg) !important; }
     .btn-reset-q {
       background: transparent !important;
       color: var(--muted) !important;
@@ -320,6 +329,14 @@ function renderQCard(item, globalIdx) {
             id="bx-${item.topicId}-${item.qIdx}"
             onclick="resetQ('${item.topicId}',${item.qIdx})">
             ↺ Reset <span class="count-badge" id="cx-${item.topicId}-${item.qIdx}">${counts.reset || 0}</span>
+          </button>
+          <button class="action-btn btn-note-q${Store.getNote(`${item.topicId}::${item.qIdx}`) ? ' has-note' : ''}"
+            id="nb-${item.topicId}-${item.qIdx}"
+            data-nkey="${item.topicId}::${item.qIdx}"
+            data-ntitle="${escHtml(item.q).slice(0,80)}"
+            data-nsub="${escHtml(item.topicTitle)}"
+            onclick="openNotesModal(this.dataset.nkey, this.dataset.ntitle, this.dataset.nsub)">
+            📝
           </button>
         </div>
       </div>
